@@ -1,0 +1,35 @@
+# Build outputs and dependencies
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/TestResults/
+**/.vs/
+backend/.tools/
+
+# Local environment and generated files
+*.log
+*.tmp
+**/test-results.txt
+.env
+.env.*
+!.env.example
+Thumbs.db
+.DS_Store
+
+# Local-only plans, screenshots, and instructions
+**/docs/
+/itam-codex-engineering/
+/SKILL/
+/.agents/skills/
+/.github/skills/
+*.md
+!README.md
+!**/README.md
+
+# Python Agent local artifacts
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+agent/state/
+/.test-venv/

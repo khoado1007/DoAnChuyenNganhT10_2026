@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/ITManagement.IntegrationTests/ITManagement.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/ITManagement.API/ITManagement.API.csproj" />
+    <Project Path="src/ITManagement.Application/ITManagement.Application.csproj" />
+    <Project Path="src/ITManagement.Domain/ITManagement.Domain.csproj" />
+    <Project Path="src/ITManagement.Infrastructure/ITManagement.Infrastructure.csproj" />
+  </Folder>
+</Solution>

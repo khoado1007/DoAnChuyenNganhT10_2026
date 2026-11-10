@@ -1,0 +1,9 @@
+.demo-banner { position: relative; z-index: 50; min-height: 44px; padding: 9px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: #fff6df; border-bottom: 1px solid #e4c77e; color: #674c13; font: 12px/1.5 'Segoe UI', Arial, sans-serif; }
+.demo-banner strong { letter-spacing: .07em; margin-right: 14px; font-size: 11px; }
+.demo-actions { display: flex; align-items: center; gap: 12px; }
+.demo-actions button { background: #fff; border: 1px solid #d8bd7b; border-radius: 5px; color: #674c13; cursor: pointer; padding: 4px 12px; font: inherit; }
+.demo-actions a { color: #674c13; }
+body.demo-mode .sidebar { top: 44px; height: calc(100vh - 44px); }
+body.demo-mode .app-shell { min-height: calc(100vh - 44px); }
+@media(max-width: 900px) { .demo-banner { min-height: 76px; } body.demo-mode .sidebar { top: 76px; height: calc(100vh - 76px); } }
+@media(max-width: 540px) { .demo-banner { padding: 8px 12px; min-height: 108px; } .demo-banner span { display: block; } body.demo-mode .sidebar { top: 108px; height: calc(100vh - 108px); } }

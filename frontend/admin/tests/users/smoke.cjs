@@ -1,0 +1,80 @@
+const assert = require('node:assert/strict');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const base = process.env.ITAM_UI_URL || 'http://127.0.0.1:5190';
+// Kiểm thử tạo/sửa tài khoản, thu hồi phiên, phân quyền theo vai trò và bố cục di động.
+(async () => {
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  try {
+    const errors = [];
+    const admin = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    admin.on('pageerror', error => errors.push(error.message));
+    // Đăng nhập qua biểu mẫu và chờ chuyển hướng theo vai trò của tài khoản.
+    async function login(page, username, password) {
+      await page.goto(base + '/login');
+      await page.getByLabel('Tên đăng nhập', { exact: true }).fill(username);
+      await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
+      await page.getByRole('button', { name: /Đăng nhập/ }).click();
+    }
+    await login(admin, 'admin', process.env.ITAM_TEST_PASSWORD);
+    await admin.waitForURL('**/admin');
+    await admin.getByRole('button', { name: /Tài khoản/ }).click();
+    await admin.waitForURL('**/admin/users');
+    await admin.getByRole('button', { name: 'Thêm tài khoản', exact: true }).click();
+    const name = 'ui' + Date.now();
+    const password = 'Employee@12345';
+    const dialog = admin.getByRole('dialog');
+    await dialog.getByLabel('Tên đăng nhập', { exact: true }).fill(name);
+    await dialog.getByLabel('Họ và tên', { exact: true }).fill('Người dùng kiểm thử');
+    await dialog.getByLabel('Email', { exact: true }).fill(name + '@example.test');
+    await dialog.getByLabel('Phòng ban', { exact: true }).fill('IT');
+    await dialog.getByLabel('Mật khẩu ban đầu', { exact: true }).fill(password);
+    await dialog.getByRole('button', { name: 'Lưu tài khoản', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    const row = admin.getByRole('row').filter({ hasText: name });
+    await row.getByText('Hoạt động', { exact: true }).waitFor();
+    await admin.reload();
+    await row.getByText('Hoạt động', { exact: true }).waitFor();
+    assert.equal(new URL(admin.url()).pathname, '/admin/users');
+    const employee = await browser.newPage();
+    employee.on('pageerror', error => errors.push(error.message));
+    await login(employee, name, password);
+    await employee.waitForURL('**/employee');
+    await employee.getByRole('heading', { name: 'Cổng nhân viên' }).waitFor();
+    await employee.reload();
+    await employee.getByText(name, { exact: true }).waitFor();
+    const oldJwt = await employee.evaluate(() => sessionStorage.getItem('itdesk.accessToken'));
+    await employee.goto(base + '/admin/users');
+    await employee.getByText('Bạn không có quyền truy cập khu vực này', { exact: true }).waitFor();
+    await row.getByRole('button', { name: 'Chỉnh sửa', exact: true }).click();
+    await dialog.getByLabel('Trạng thái', { exact: true }).press('ArrowDown');
+    await admin.getByTitle('Đã khóa', { exact: true }).click();
+    await dialog.getByRole('button', { name: 'Lưu tài khoản', exact: true }).click();
+    await row.getByText('Đã khóa', { exact: true }).waitFor();
+    const revoked = await employee.request.get(base + '/api/auth/me', { headers: { Authorization: 'Bearer ' + oldJwt } });
+    assert.equal(revoked.status(), 401);
+    await employee.reload();
+    await employee.getByRole('heading', { name: 'Chào mừng trở lại' }).waitFor();
+    await row.getByRole('button', { name: 'Chỉnh sửa', exact: true }).click();
+    await dialog.getByLabel('Trạng thái', { exact: true }).press('ArrowDown');
+    await admin.getByTitle('Hoạt động', { exact: true }).click();
+    await dialog.getByLabel('Vai trò', { exact: true }).press('ArrowDown');
+    await admin.getByTitle('Kỹ thuật viên', { exact: true }).click();
+    await dialog.getByRole('button', { name: 'Lưu tài khoản', exact: true }).click();
+    await row.getByText('Kỹ thuật viên', { exact: true }).waitFor();
+    assert.equal((await employee.request.get(base + '/api/auth/me', { headers: { Authorization: 'Bearer ' + oldJwt } })).status(), 401);
+    await login(employee, name, password);
+    await employee.waitForURL('**/technician');
+    await employee.getByRole('heading', { name: 'Cổng kỹ thuật viên' }).waitFor();
+    await employee.goto(base + '/employee');
+    await employee.getByText('Bạn không có quyền truy cập khu vực này', { exact: true }).waitFor();
+    await employee.getByRole('button', { name: 'Về trang của tôi', exact: true }).click();
+    await employee.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
+    assert.equal(await employee.evaluate(() => sessionStorage.getItem('itdesk.accessToken')), null);
+    await admin.setViewportSize({ width: 390, height: 844 });
+    await admin.reload();
+    await admin.getByRole('heading', { name: 'Tài khoản', exact: true }).waitFor();
+    assert.equal(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    assert.deepEqual(errors, []);
+    console.log('PASS: Admin create/edit/lock/unlock/change role, JWT revocation, role routes/reload/cross-role denial, logout, mobile');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });
