@@ -35,7 +35,10 @@ public class DashboardSqlServerTests
                 new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:DefaultConnection"] =
-                        $@"Server=(localdb)\MSSQLLocalDB;Database={database};Integrated Security=True;Encrypt=False",
+                        new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(
+                            Environment.GetEnvironmentVariable("TEST_SQLSERVER")
+                            ?? @"Server=(localdb)\MSSQLLocalDB;Integrated Security=True;Encrypt=False")
+                        { InitialCatalog = database }.ConnectionString,
                     ["Database:InitializeOnStartup"] = "false",
                     ["Jwt:Secret"] = "dashboard-test-only-secret-at-least-32-bytes",
                     ["Jwt:Issuer"] = "ITManagement",

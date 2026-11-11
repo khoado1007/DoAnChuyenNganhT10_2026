@@ -8,7 +8,7 @@ using ITManagement.Domain.Exceptions;
 using ITManagement.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
+using Microsoft.Data.SqlClient;
 
 namespace ITManagement.Infrastructure.Services;
 
@@ -67,7 +67,7 @@ public sealed class UserService(AppDbContext db, UserManager<IdentityUser> ident
             await tx.CommitAsync(ct);
             return UserResponse.From(user);
         }
-        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 })
         { throw Duplicate(); }
     }
 
@@ -76,7 +76,7 @@ public sealed class UserService(AppDbContext db, UserManager<IdentityUser> ident
     {
         CheckRole(request.Role);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+        var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {id}").SingleOrDefaultAsync(ct)
             ?? throw new NotFoundException("User", id);
         if (user.Role == UserRole.Admin)
             throw new BusinessRuleException("Không chỉnh sửa tài khoản quản trị bootstrap trong chức năng này.");
@@ -101,7 +101,7 @@ public sealed class UserService(AppDbContext db, UserManager<IdentityUser> ident
             await tx.CommitAsync(ct);
             return UserResponse.From(user);
         }
-        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 })
         { throw Duplicate(); }
     }
 }

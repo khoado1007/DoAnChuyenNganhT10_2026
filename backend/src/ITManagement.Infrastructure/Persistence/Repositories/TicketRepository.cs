@@ -57,8 +57,8 @@ public class TicketRepository : ITicketRepository
     }
 
     /// <summary>Lấy số thứ tự tiếp theo để tạo mã phiếu duy nhất.</summary>
-    public Task<int> GetNextSequenceAsync(int year, CancellationToken ct = default)
-        // Keep the existing interface; PostgreSQL allocates safely across concurrent requests.
-        => _db.Database.SqlQueryRaw<int>("SELECT nextval('ticket_number_seq')::integer AS \"Value\"")
-            .SingleAsync(ct);
+    public async Task<int> GetNextSequenceAsync(int year, CancellationToken ct = default)
+        // SQL Server cấp sequence nguyên tử; materialize trước để EF không bọc NEXT VALUE FOR trong subquery.
+        => (await _db.Database.SqlQueryRaw<int>("SELECT NEXT VALUE FOR [ticket_number_seq] AS [Value]")
+            .ToListAsync(ct)).Single();
 }

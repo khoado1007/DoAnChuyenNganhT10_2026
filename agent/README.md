@@ -1,13 +1,13 @@
 # Python Agent: đăng ký và heartbeat
 
-> **Hướng triển khai hiện tại — 06/11/2026:** xem [STORAGE_POLICY.md](../STORAGE_POLICY.md). Agent lưu nội dung bền vững trên ổ local; server quản lý quyền/quota và metadata đo lường. Các mô tả heartbeat/connectivity bên dưới thuộc baseline cũ, không phải yêu cầu làm dashboard online/offline. Luồng file mới chưa được nghiệm thu end-to-end; không suy ra hoàn tất từ lệnh CLI.
+> **Hướng triển khai hiện tại — 06/11/2026:** xem [hướng dẫn chạy Windows/LocalDB](../RUNNING.md). Agent lưu nội dung bền vững trên ổ local; server quản lý quyền/quota và metadata đo lường. Các mô tả heartbeat/connectivity bên dưới thuộc baseline cũ, không phải yêu cầu làm dashboard online/offline. Luồng file mới chưa được nghiệm thu end-to-end; không suy ra hoàn tất từ lệnh CLI.
 
 
 Một codebase cho `real` và `simulated`, mỗi instance dùng một file state riêng. `real` chỉ gửi hostname, OS, CPU, tổng RAM và phiên bản Agent khi truyền `--consent-inventory`. `simulated` đọc fixture và server giữ nhãn chế độ từ token, không cho heartbeat tự đổi nhãn. Không tạo tài khoản OS, không chạy lệnh từ xa, không đọc tài liệu cá nhân.
 
 ## Cài đặt và chạy
 
-Các lệnh dưới đây chạy từ thư mục gốc repository. Cần Python 3.11+ và API/PostgreSQL đang hoạt động.
+Các lệnh dưới đây chạy từ thư mục gốc repository. Cần Python 3.11+ và API/SQL Server LocalDB đang hoạt động.
 
 ```powershell
 python -m venv agent\.venv
@@ -17,8 +17,8 @@ agent\.venv\Scripts\python.exe -m pip install -r agent\requirements-dev.txt
 Đăng nhập Admin trên web, mở **Agent**, tạo/chọn tài sản và cấp token đúng chế độ. Chạy lệnh sau, dán token vào lời nhắc ẩn; không truyền token qua command line:
 
 ```powershell
-agent\.venv\Scripts\python.exe agent\itam_agent.py enroll --server http://127.0.0.1:8080 --mode real --state agent\state\real.json --consent-inventory
-agent\.venv\Scripts\python.exe agent\itam_agent.py run --server http://127.0.0.1:8080 --mode real --state agent\state\real.json --consent-inventory
+agent\.venv\Scripts\python.exe agent\itam_agent.py enroll --server http://127.0.0.1:5038 --mode real --state agent\state\real.json --consent-inventory
+agent\.venv\Scripts\python.exe agent\itam_agent.py run --server http://127.0.0.1:5038 --mode real --state agent\state\real.json --consent-inventory
 ```
 
 Đối với mô phỏng, cấp token thứ hai cho tài sản thứ hai rồi dùng `--mode simulated --state agent\state\simulated.json`. Hai instance trên một PC không chứng minh hai thiết bị vật lý. Có thể dùng `once` thay `run` để gửi một heartbeat. Ctrl+C dừng nhẹ nhàng.
@@ -47,16 +47,14 @@ Server dùng UTC; sequence trùng/cũ không cập nhật last-seen hoặc inven
 ## Kiểm thử
 
 ```powershell
-# PostgreSQL tách riêng; không dùng database nghiệp vụ
-docker run -d --name itam-agent-tests -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55432:5432 postgres:16-alpine
-$env:TEST_POSTGRES='Host=127.0.0.1;Port=55432;Username=postgres;Password=postgres'
+# SQL Server LocalDB: test tự tạo database riêng, không dùng database nghiệp vụ.
 dotnet test .\backend\ITManagement.slnx
 agent\.venv\Scripts\python.exe -m pytest .\agent\tests -q
 npm --prefix frontend/admin test
 npm --prefix frontend/admin run build
 ```
 
-Live smoke: khởi chạy API Development trên `127.0.0.1:5189`, trỏ `ConnectionStrings__DefaultConnection` tới database `itam_agent_e2e` trên PostgreSQL test. Đặt `ITAM_TEST_PASSWORD` bằng mật khẩu admin test rồi chạy:
+Live smoke: khởi chạy API Development trên `127.0.0.1:5189`, trỏ `ConnectionStrings__DefaultConnection` tới database `itam_agent_e2e` trên SQL Server LocalDB riêng. Đặt `ITAM_TEST_PASSWORD` bằng mật khẩu admin test rồi chạy:
 
 ```powershell
 agent\.venv\Scripts\python.exe agent\e2e_smoke.py --server http://127.0.0.1:5189 --consent-inventory

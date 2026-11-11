@@ -9,7 +9,7 @@ using ITManagement.Domain.Enums;
 using ITManagement.Domain.Exceptions;
 using ITManagement.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
+using Microsoft.Data.SqlClient;
 
 namespace ITManagement.Infrastructure.Services;
 
@@ -27,7 +27,7 @@ public sealed class AgentService(AppDbContext db, TimeProvider clock) : IAgentSe
     // Khóa đồng bộ thao tác cập nhật trạng thái tài sản của agent.
     private async Task<Asset> LockAsset(Guid id, CancellationToken ct)
     {
-        var asset = await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
+        var asset = await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {id}").SingleOrDefaultAsync(ct);
         if (asset is null) throw new NotFoundException("Asset", id);
         if (asset.Status is AssetStatus.Disabled or AssetStatus.Retired)
             throw new UnauthorizedException("Tài sản đã vô hiệu hóa hoặc ngừng sử dụng.");
@@ -85,7 +85,7 @@ public sealed class AgentService(AppDbContext db, TimeProvider clock) : IAgentSe
         var agent = new RegisteredAgent { AssetId = token.AssetId, InstanceId = request.InstanceId, Mode = token.Mode, CredentialHash = Hash(credential), CreatedAt = now };
         db.Agents.Add(agent);
         try { await db.SaveChangesAsync(ct); }
-        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 })
         { throw new BusinessRuleException("Tài sản hoặc instance đã được đăng ký."); }
         await tx.CommitAsync(ct);
         return new(agent.Id, credential);
@@ -97,7 +97,7 @@ public sealed class AgentService(AppDbContext db, TimeProvider clock) : IAgentSe
         if (credential.Length != 64) throw Invalid();
         var hash = Hash(credential);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var agent = await db.Agents.FromSqlInterpolated($"SELECT * FROM agents WHERE \"CredentialHash\" = {hash} FOR UPDATE").SingleOrDefaultAsync(ct);
+        var agent = await db.Agents.FromSqlInterpolated($"SELECT * FROM agents WITH (UPDLOCK, ROWLOCK) WHERE \"CredentialHash\" = {hash}").SingleOrDefaultAsync(ct);
         if (agent is null) throw Invalid();
         if (agent.RevokedAt is not null) throw new UnauthorizedException("Agent đã bị thu hồi hoặc thay thế.");
         if (agent.DisabledAt is not null) throw new UnauthorizedException("Agent đã bị vô hiệu hóa.");

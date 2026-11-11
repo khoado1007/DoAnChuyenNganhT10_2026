@@ -18,10 +18,10 @@ namespace ITManagement.IntegrationTests;
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
     public string StorageRoot { get; } = Path.Combine(Path.GetTempPath(), "itam-storage-test-" + Guid.NewGuid().ToString("N"));
-    private readonly string connection = new Npgsql.NpgsqlConnectionStringBuilder(
-        Environment.GetEnvironmentVariable("TEST_POSTGRES")
-        ?? "Host=localhost;Port=5432;Username=postgres;Password=postgres")
-    { Database = "itmanagement_test_" + Guid.NewGuid().ToString("N") }.ConnectionString;
+    private readonly string connection = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(
+        Environment.GetEnvironmentVariable("TEST_SQLSERVER")
+        ?? @"Server=(localdb)\MSSQLLocalDB;Integrated Security=True;Encrypt=False")
+    { InitialCatalog = "itmanagement_test_" + Guid.NewGuid().ToString("N") }.ConnectionString;
 
     // Cấu hình máy chủ kiểm thử để dùng kết nối cơ sở dữ liệu được chỉ định.
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -30,14 +30,17 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["SeedAdmin:Password"] = "Admin@12345"
+                ["SeedAdmin:Password"] = "Admin@12345",
+                ["Database:InitializeOnStartup"] = "true",
+                ["ConnectionStrings:DefaultConnection"] = connection
             }));
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<ITManagement.Application.Common.Interfaces.IFileStorageService>();
             services.AddSingleton<ITManagement.Application.Common.Interfaces.IFileStorageService>(new ITManagement.Infrastructure.FileStorage.LocalFileStorageService(new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["FileStorage:RootPath"] = StorageRoot }).Build()));
             services.RemoveAll<DbContextOptions<AppDbContext>>();
-            services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connection));
+            services.RemoveAll<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptionsConfiguration<AppDbContext>>();
+            services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connection));
         });
     }
 
@@ -46,7 +49,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         try
         {
-            await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connection).Options);
+            await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(connection).Options);
             await db.Database.EnsureDeletedAsync();
         }
         finally { await base.DisposeAsync(); if (Directory.Exists(StorageRoot)) Directory.Delete(StorageRoot, true); }

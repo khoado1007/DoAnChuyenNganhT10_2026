@@ -6,7 +6,7 @@ using ITManagement.Domain.Enums;
 using ITManagement.Domain.Exceptions;
 using ITManagement.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
+using Microsoft.Data.SqlClient;
 namespace ITManagement.Infrastructure.Services;
 
 /// <summary>Khởi tạo dịch vụ tìm kiếm và quản lý tài sản.</summary>
@@ -44,7 +44,7 @@ public sealed class AssetService(AppDbContext db) : IAssetService
             Model = request.Model?.Trim() ?? "", Location = request.Location?.Trim() ?? "", Notes = request.Notes?.Trim() ?? "" };
         db.Assets.Add(asset);
         try { await db.SaveChangesAsync(ct); }
-        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 })
         { throw new BusinessRuleException("Mã tài sản đã tồn tại."); }
         return Response(asset);
     }
@@ -52,7 +52,7 @@ public sealed class AssetService(AppDbContext db) : IAssetService
     public async Task<AssetResponse> UpdateAsync(Guid id, UpdateAssetRequest request, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var asset = await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+        var asset = await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {id}").SingleOrDefaultAsync(ct)
             ?? throw new NotFoundException("Asset", id);
         if (asset.Status == AssetStatus.Retired && request.Status != AssetStatus.Retired)
             throw new BusinessRuleException("Tài sản đã ngừng sử dụng không thể kích hoạt lại.");

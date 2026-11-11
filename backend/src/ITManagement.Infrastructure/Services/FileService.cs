@@ -69,7 +69,7 @@ public sealed class FileService(AppDbContext db, IFileStorageService storage, IC
         try
         {
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            var quota = await db.StorageQuotas.FromSqlInterpolated($"SELECT * FROM \"StorageQuotas\" WHERE \"UserId\" = {owner} FOR UPDATE")
+            var quota = await db.StorageQuotas.FromSqlInterpolated($"SELECT * FROM StorageQuotas WITH (UPDLOCK, ROWLOCK) WHERE \"UserId\" = {owner}")
                 .SingleOrDefaultAsync(q => !q.IsDeleted, ct)
                 ?? throw new BusinessRuleException("Tài khoản chưa có quota lưu trữ.");
             if (quota.UsedBytes < 0 || quota.QuotaBytes < quota.UsedBytes)
@@ -114,7 +114,7 @@ public sealed class FileService(AppDbContext db, IFileStorageService storage, IC
         await using (var tx = await db.Database.BeginTransactionAsync(ct))
         {
             // All quota mutations must use this row lock (including future uploads).
-            var quota = await db.StorageQuotas.FromSqlInterpolated($"SELECT * FROM \"StorageQuotas\" WHERE \"UserId\" = {current.UserId} FOR UPDATE")
+            var quota = await db.StorageQuotas.FromSqlInterpolated($"SELECT * FROM StorageQuotas WITH (UPDLOCK, ROWLOCK) WHERE \"UserId\" = {current.UserId}")
                 .SingleOrDefaultAsync(q => !q.IsDeleted, ct) ?? throw new NotFoundException("File", id);
             var file = await db.FileMetadata.SingleOrDefaultAsync(f => f.Id == id && f.StorageQuotaId == quota.Id, ct)
                 ?? throw new NotFoundException("File", id);

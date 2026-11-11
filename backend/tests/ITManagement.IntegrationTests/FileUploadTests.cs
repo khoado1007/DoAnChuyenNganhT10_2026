@@ -92,7 +92,7 @@ public class FileUploadTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var a = await User(); using var owner = a.client;
         using var scope = factory.Services.CreateScope();
         var existing = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(existing.Database.GetConnectionString());
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(existing.Database.GetConnectionString());
         if (!cancel) options.AddInterceptors(new FailSave());
         await using var db = new AppDbContext(options.Options);
         using var cts = new CancellationTokenSource();
@@ -165,7 +165,7 @@ public class FileUploadTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var a = await User(); using var owner = a.client;
         using var scope = factory.Services.CreateScope();
         var existing = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(existing.Database.GetConnectionString())
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(existing.Database.GetConnectionString())
             .AddInterceptors(new LostCommitAck()).Options;
         await using var db = new AppDbContext(options);
         var storage = scope.ServiceProvider.GetRequiredService<ITManagement.Application.Common.Interfaces.IFileStorageService>();

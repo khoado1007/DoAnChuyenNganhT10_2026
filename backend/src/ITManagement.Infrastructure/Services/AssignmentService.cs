@@ -17,7 +17,7 @@ public sealed class AssignmentService(AppDbContext db, ICurrentUserService curre
         a.AssignedAt, a.ReturnedAt, a.Status, a.AssignedBy, a.Notes, a.ClosedBy, a.CloseNotes));
     // Khóa hàng tài sản trong giao dịch để đồng bộ các thao tác cấp phát.
     private async Task<Asset> LockAsset(Guid id, CancellationToken ct) =>
-        await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+        await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {id}").SingleOrDefaultAsync(ct)
         ?? throw new NotFoundException("Asset", id);
     // Lấy phản hồi cho một lượt giao theo mã định danh.
     private Task<AssignmentResponse> Response(Guid id, CancellationToken ct) =>
@@ -30,7 +30,7 @@ public sealed class AssignmentService(AppDbContext db, ICurrentUserService curre
         var asset = await LockAsset(assetId, ct);
         if (asset.Status != AssetStatus.Available || await db.AssetAssignments.AnyAsync(a => a.AssetId == assetId && a.Status == AssignmentStatus.Active, ct))
             throw new BusinessRuleException("Tài sản không sẵn sàng cấp phát.");
-        var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WHERE \"Id\" = {request.UserId} FOR UPDATE").SingleOrDefaultAsync(ct);
+        var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {request.UserId}").SingleOrDefaultAsync(ct);
         if (user is null || user.Role != UserRole.Employee || user.Status != UserStatus.Active)
             throw new BusinessRuleException("Người nhận phải là nhân viên đang hoạt động.");
         var row = new AssetAssignment { AssetId = assetId, UserId = user.Id, AssignedBy = current.Username!, CreatedBy = current.Username,

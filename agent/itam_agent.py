@@ -78,6 +78,16 @@ def retry_delay(failures: int, interval: int) -> float:
     return min(300, interval * 2 ** min(max(failures, 0), 5) * random.uniform(1, 1.25))
 
 
+def current_windows_account() -> str:
+    """Lấy định danh Windows đủ DOMAIN\\user để áp ACL đúng tài khoản."""
+    result = subprocess.run(['whoami'], check=True, capture_output=True, text=True,
+                            creationflags=subprocess.CREATE_NO_WINDOW)
+    account = result.stdout.strip()
+    if not account or '\\' not in account:
+        raise OSError('Unable to resolve the Windows account for private storage.')
+    return account
+
+
 def save_private(path: Path, value: dict) -> None:
     """Ghi trạng thái JSON an toàn qua tệp tạm và thay thế nguyên tử."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -85,7 +95,7 @@ def save_private(path: Path, value: dict) -> None:
     try:
         # Restrict access before writing credentials. Windows chmod alone cannot set ACLs.
         if os.name == 'nt':
-            subprocess.run(['icacls', temporary, '/inheritance:r', '/grant:r', f'{getpass.getuser()}:(F)'],
+            subprocess.run(['icacls', temporary, '/inheritance:r', '/grant:r', f'{current_windows_account()}:(F)'],
                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                            creationflags=subprocess.CREATE_NO_WINDOW)
         else:

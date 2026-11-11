@@ -33,3 +33,9 @@ Thumbs.db
 **/.pytest_cache/
 agent/state/
 /.test-venv/
+
+# Current Windows setup instructions
+!/RUNNING.md
+
+# Handoff progress file
+!/TIEN_DO_DO_AN.md

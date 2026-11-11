@@ -113,7 +113,7 @@ public sealed class ProfileOperationService(
 
         // Lock profile row để bảo vệ Quota Reservation trước các request đồng thời.
         var lockedProfile = await db.LocalProfiles
-            .FromSqlInterpolated($"SELECT * FROM local_profiles WHERE \"Id\" = {profile.Id} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {profile.Id}")
             .SingleAsync(ct);
 
         var existingOp = await db.ProfileOperations.SingleOrDefaultAsync(
@@ -234,7 +234,7 @@ public sealed class ProfileOperationService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var profile = await db.LocalProfiles
-            .FromSqlInterpolated($"SELECT * FROM local_profiles WHERE \"Id\" = {profileId} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {profileId}")
             .SingleOrDefaultAsync(ct)
             ?? throw new NotFoundException("LocalProfile", profileId);
 
@@ -292,7 +292,7 @@ public sealed class ProfileOperationService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var op = await db.ProfileOperations
-            .FromSqlInterpolated($"SELECT * FROM profile_operations WHERE \"Id\" = {operationId} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT * FROM profile_operations WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {operationId}")
             .SingleOrDefaultAsync(ct);
 
         if (op is null || op.AgentId != agent.Id)
@@ -306,7 +306,7 @@ public sealed class ProfileOperationService(
         }
 
         var profile = await db.LocalProfiles
-            .FromSqlInterpolated($"SELECT * FROM local_profiles WHERE \"Id\" = {op.ProfileId} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {op.ProfileId}")
             .SingleAsync(ct);
 
         if (result.Success)

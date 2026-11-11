@@ -21,7 +21,7 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         if (current.Role != UserRole.Admin) throw Forbidden();
     }
     private async Task<Asset> LockAsset(Guid id, CancellationToken ct) =>
-        await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WHERE \"Id\" = {id} FOR UPDATE")
+        await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {id}")
             .SingleOrDefaultAsync(ct) ?? throw new NotFoundException("Asset", id);
 
     public async Task<IReadOnlyList<MachineResponse>> MachinesAsync(CancellationToken ct) =>
@@ -51,7 +51,7 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         var active = await db.DeviceAccessGrants.SingleOrDefaultAsync(x => x.AssetId == assetId && x.UserId == userId && x.RevokedAt == null, ct);
         if (grant)
         {
-            var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WHERE \"Id\" = {userId} FOR UPDATE").SingleOrDefaultAsync(ct);
+            var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {userId}").SingleOrDefaultAsync(ct);
             if (user is null || user.Role != UserRole.Employee || user.Status != UserStatus.Active
                 || asset.Status is not (AssetStatus.Available or AssetStatus.Assigned)) throw Forbidden();
             if (active is null)
@@ -78,7 +78,7 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         // Cùng lock order với grant/assignment: asset trước, user sau.
         var asset = await LockAsset(assetId, ct);
-        var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WHERE \"Id\" = {userId} FOR UPDATE").SingleOrDefaultAsync(ct);
+        var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {userId}").SingleOrDefaultAsync(ct);
         if (user is null || user.Status != UserStatus.Active || user.Role != UserRole.Employee
             || asset.Status is not (AssetStatus.Available or AssetStatus.Assigned)
             || !await db.DeviceAccessGrants.AnyAsync(x => x.AssetId == assetId && x.UserId == userId && x.RevokedAt == null, ct)) throw Forbidden();

@@ -5,6 +5,14 @@
 > **Trạng thái:** Đặc tả mục tiêu cần triển khai, **không phải** báo cáo những tính năng đã hoàn thành.  
 > **Nguồn cảm hứng:** FleetDM (quản lý thiết bị); mô phỏng một phần trải nghiệm đăng nhập và hồ sơ người dùng Windows. Không sao chép toàn bộ FleetDM hoặc Windows.
 
+**Bàn giao tiến độ:** đọc [TIEN_DO_DO_AN.md](TIEN_DO_DO_AN.md) khi tiếp tục phiên mới; cập nhật sau mỗi phần việc lớn và trước khi dừng do giới hạn phiên.
+
+## Cách chạy hiện tại — 11/11/2026
+
+Dùng **SQL Server Express LocalDB** tại `(localdb)\MSSQLLocalDB`, Windows Authentication; **không dùng Docker**. Xem [RUNNING.md](RUNNING.md) để chạy API, web, Agent và bộ kiểm thử. LocalDB tự khởi động khi kết nối; không cần mở SSMS trước khi chạy API.
+
+Các file Docker cũ chỉ được giữ làm lịch sử, không thuộc quy trình chạy hiện tại. Migration PostgreSQL cũ được giữ tham khảo và loại khỏi biên dịch; không áp dụng chúng cho SQL Server.
+
 ## 1. Tổng quan đề tài
 
 Xây dựng ứng dụng quản lý tài sản công nghệ thông tin (**IT Asset Management — ITAM**) kết hợp một số nghiệp vụ hỗ trợ dịch vụ CNTT (**IT Service Management — ITSM**) dành cho mô hình doanh nghiệp nhỏ. Hệ thống giúp bộ phận IT quản lý nhân viên, thiết bị, cấp phát và thu hồi tài sản, quyền sử dụng máy, và vùng lưu trữ tài liệu cá nhân theo từng nhân viên trên từng thiết bị.
@@ -19,9 +27,9 @@ Xây dựng ứng dụng quản lý tài sản công nghệ thông tin (**IT Ass
 | --- | --- | --- |
 | Frontend | React + TypeScript + Vite | Hai trải nghiệm: Admin Dashboard và Windows Simulation |
 | Backend | ASP.NET Core Web API (.NET 10) | Xác thực, phân quyền, nghiệp vụ, API, điều phối Agent |
-| Database | PostgreSQL + Entity Framework Core | Danh tính, tài sản, quyền, metadata file, quota, lịch sử |
+| Database | SQL Server LocalDB + Entity Framework Core | Danh tính, tài sản, quyền, metadata file, quota, lịch sử |
 | Endpoint Agent | Python | Quản lý vùng file local theo `DeviceId` và `DomainUserId` |
-| Triển khai | Docker Compose | Chạy API, PostgreSQL, web; Agent thật chạy trên Windows host |
+| Triển khai | Windows trực tiếp | API, SQL Server LocalDB, React và Python Agent; không dùng Docker |
 
 **Không sử dụng Rust API, MongoDB, OneDrive, Active Directory hay Windows Service cho MVP.** Không triển khai microservices nếu một Web API là đủ.
 
@@ -154,7 +162,7 @@ Trong File Manager mô phỏng, nhân viên có thể:
 
 ### 7.2. Metadata và quyền riêng tư
 
-PostgreSQL lưu `FileId`, `LocalProfileId`, tên file, phần mở rộng, kích thước, đường dẫn tương đối, thời điểm tạo/sửa và trạng thái cần thiết. Nội dung file nằm tại máy tương ứng. Admin có thể quản trị quota và xem metadata, **không có quyền đọc nội dung mặc định**.
+SQL Server LocalDB lưu `FileId`, `LocalProfileId`, tên file, phần mở rộng, kích thước, đường dẫn tương đối, thời điểm tạo/sửa và trạng thái cần thiết. Nội dung file nằm tại máy tương ứng. Admin có thể quản trị quota và xem metadata, **không có quyền đọc nội dung mặc định**.
 
 File không được phục vụ công khai qua static web. Backend/Agent phải xác minh quyền trên từng thao tác, chống path traversal, symbolic link escape, ghi đè ngoài vùng root và tên file nguy hiểm.
 
@@ -255,7 +263,7 @@ Các tên bảng là thiết kế mục tiêu, cần đối chiếu với schema
 
 ## 14. Thứ tự ưu tiên triển khai
 
-**Giai đoạn 1 — Nền tảng:** cấu trúc React/API/PostgreSQL, xác thực, RBAC, tài khoản, thiết bị, cấp phát và quyền truy cập.
+**Giai đoạn 1 — Nền tảng:** cấu trúc React/API/SQL Server LocalDB, xác thực, RBAC, tài khoản, thiết bị, cấp phát và quyền truy cập.
 
 **Giai đoạn 2 — Profile & Agent:** đăng ký Agent, tạo profile `(user, device)` độc lập, thao tác file local, metadata và quota 10 file.
 

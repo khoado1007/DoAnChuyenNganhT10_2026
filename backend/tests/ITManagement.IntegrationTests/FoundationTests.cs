@@ -10,7 +10,7 @@ public class FoundationTests
     // Tạo DbContext trỏ đến cơ sở dữ liệu không thể truy cập để kiểm thử lỗi kết nối.
     private static AppDbContext UnreachableDatabase() => new(
         new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql("Host=127.0.0.1;Port=1;Database=unreachable;Username=postgres;Password=postgres;Timeout=1")
+            .UseSqlServer("Server=127.0.0.1,1;Database=unreachable;User Id=test;Password=test;Encrypt=False;Connect Timeout=1")
             .Options);
 
     /// <summary>Kiểm thử lỗi cơ sở dữ liệu được truyền lên khi bắt đầu giao dịch thất bại.</summary>

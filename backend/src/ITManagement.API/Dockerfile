@@ -1,3 +1,4 @@
+# LEGACY: not used by the Windows/LocalDB setup. See RUNNING.md.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
@@ -20,7 +21,7 @@ RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
-# Volume cho file storage — không được expose ra public
+# Volume cho file storage â€” khÃ´ng Ä‘Æ°á»£c expose ra public
 VOLUME ["/app/storage"]
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "ITManagement.API.dll"]

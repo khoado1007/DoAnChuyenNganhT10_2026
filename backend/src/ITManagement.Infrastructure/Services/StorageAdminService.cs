@@ -18,7 +18,7 @@ public sealed class StorageAdminService(AppDbContext db, IFileStorageService sto
     // Lấy khóa đồng bộ thao tác quản trị vùng lưu trữ.
     private async Task<StorageQuota> LockAsync(Guid userId, CancellationToken ct)
     {
-        var quota = await db.StorageQuotas.FromSqlInterpolated($"SELECT * FROM \"StorageQuotas\" WHERE \"UserId\" = {userId} FOR UPDATE")
+        var quota = await db.StorageQuotas.FromSqlInterpolated($"SELECT * FROM StorageQuotas WITH (UPDLOCK, ROWLOCK) WHERE \"UserId\" = {userId}")
             .SingleOrDefaultAsync(q => !q.IsDeleted, ct);
         if (quota is null || !await db.AppUsers.AnyAsync(u => u.Id == userId, ct)) throw new NotFoundException("Quota", userId);
         return quota;

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import base64
 import binascii
-import getpass
 from datetime import datetime, timezone
 import json
 import os
@@ -89,11 +88,12 @@ class LocalProfiles:
         if system not in self._private_systems:
             if os.name == 'nt':
                 try:
+                    from itam_agent import current_windows_account
                     subprocess.run(['icacls', str(system), '/inheritance:r', '/grant:r',
-                                    f'{getpass.getuser()}:(OI)(CI)(F)'], check=True,
+                                    f'{current_windows_account()}:(OI)(CI)(F)'], check=True,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                    creationflags=subprocess.CREATE_NO_WINDOW)
-                except subprocess.CalledProcessError:
+                except (OSError, subprocess.CalledProcessError):
                     raise FileError('LOCAL_STORAGE_PERMISSION_FAILED') from None
             else:
                 os.chmod(system, 0o700)
