@@ -1,12 +1,13 @@
 import type { UserResponse } from '../types/auth.ts';
 import type { AssetResponse } from '../types/asset.ts';
 import type { MachineProfile, ProfileFile } from '../api/machines.ts';
+import { createUuid } from '../utils/uuid.ts';
 
 type DemoFile = ProfileFile & { content: string };
 type Profile = { id: string; userId: string; deviceId: string; maxFiles: number; files: DemoFile[]; trash: DemoFile[] };
 type Session = { id: string; userId: string; deviceId: string; profileId: string };
 type Assignment = { id: string; assetId: string; userId: string; username: string; status: string; assignedAt: string; assignedBy: string; notes: string; returnedAt: string | null; closedBy: string | null; closeNotes: string | null };
-const uid = () => crypto.randomUUID();
+const uid = () => createUuid();
 const now = () => new Date().toISOString();
 const response = (data: unknown, status = 200, message = '') => Response.json({ success: status < 400, data, message, errors: null }, { status });
 const fail = (message: string, status = 400) => response(null, status, message);

@@ -50,7 +50,9 @@ class Config:
                 or parsed.path not in ('', '/') or parsed.scheme not in ('http', 'https')
                 or (parsed.scheme != 'https' and not local)):
             raise ValueError('Use an HTTPS origin; HTTP is allowed only on loopback.')
-        if self.mode not in ('real', 'simulated') or not self.consent or not 10 <= self.interval <= 60:
+        if (self.mode not in ('real', 'simulated')
+                or (self.mode == 'real' and not self.consent)
+                or not 10 <= self.interval <= 60):
             raise ValueError('Choose real/simulated, consent to inventory, and interval 10..60 seconds.')
         object.__setattr__(self, 'server', self.server.rstrip('/'))
         object.__setattr__(self, 'state', Path(self.state).resolve())

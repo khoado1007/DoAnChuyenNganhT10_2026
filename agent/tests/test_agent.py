@@ -13,11 +13,16 @@ def config(tmp_path, **kwargs):
     return Config(**values)
 
 
-@pytest.mark.parametrize('kwargs', [dict(server='http://example.com'), dict(mode='other'), dict(consent=False), dict(interval=0), dict(server='https://user:password@example.com'), dict(server='https://example.com/path')])
+@pytest.mark.parametrize('kwargs', [dict(server='http://example.com'), dict(mode='other'), dict(mode='real', consent=False), dict(interval=0), dict(server='https://user:password@example.com'), dict(server='https://example.com/path')])
 def test_rejects_unsafe_config(tmp_path, kwargs):
     """Xác nhận cấu hình không an toàn bị từ chối bằng ValueError."""
     with pytest.raises(ValueError):
         config(tmp_path, **kwargs)
+
+
+def test_simulated_config_does_not_require_inventory_consent(tmp_path):
+    """Simulated chỉ gửi fixture giả lập nên không yêu cầu đồng ý thu thập inventory thật."""
+    assert config(tmp_path, consent=False).mode == 'simulated'
 
 
 def test_fixture_is_explicitly_synthetic(tmp_path):

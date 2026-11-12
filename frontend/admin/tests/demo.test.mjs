@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { webcrypto } from 'node:crypto';
 import { createDemoFetch } from '../src/demo/server.ts';
 
 function client(fetcher) {
@@ -59,6 +60,31 @@ test('demo cannot fall through to a real API and invalid login is rejected', asy
   const response = await fetcher('/api/auth/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'wrong' }) });
   assert.equal(response.status, 401);
   assert.equal((await fetcher('/api/not-implemented')).status, 404);
+});
+
+test('demo machine login works when crypto.randomUUID is unavailable', async () => {
+  const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  Object.defineProperty(globalThis, 'crypto', {
+    configurable: true,
+    value: { getRandomValues: webcrypto.getRandomValues.bind(webcrypto) },
+  });
+  try {
+    const fetcher = createDemoFetch();
+    const login = await fetcher('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username: 'khoa', password: 'Demo@12345' }),
+    });
+    const { data: { accessToken } } = await login.json();
+    const session = await fetcher('/api/machines/pc-001/sessions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: '{}',
+    });
+    assert.equal(session.status, 200);
+  } finally {
+    if (originalCrypto) Object.defineProperty(globalThis, 'crypto', originalCrypto);
+    else Reflect.deleteProperty(globalThis, 'crypto');
+  }
 });
 
 test('demo enforces session binding and idempotency for duplicate creates', async () => {

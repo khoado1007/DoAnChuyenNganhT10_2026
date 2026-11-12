@@ -21,7 +21,13 @@ agent\.venv\Scripts\python.exe agent\itam_agent.py enroll --server http://127.0.
 agent\.venv\Scripts\python.exe agent\itam_agent.py run --server http://127.0.0.1:5038 --mode real --state agent\state\real.json --consent-inventory
 ```
 
-Đối với mô phỏng, cấp token thứ hai cho tài sản thứ hai rồi dùng `--mode simulated --state agent\state\simulated.json`. Hai instance trên một PC không chứng minh hai thiết bị vật lý. Có thể dùng `once` thay `run` để gửi một heartbeat. Ctrl+C dừng nhẹ nhàng.
+Đối với mô phỏng, cấp token đúng chế độ rồi chạy:
+
+```powershell
+agent\.venv\Scripts\python.exe agent\itam_agent.py enroll --server http://127.0.0.1:5038 --mode simulated --state agent\state\simulated.json
+```
+
+Chế độ này chỉ gửi fixture giả lập nên không cần `--consent-inventory`; vẫn dùng token một lần tại lời nhắc ẩn. Dùng `--mode simulated --state agent\state\simulated.json` nhất quán cho các lệnh tiếp theo. Hai instance trên một PC không chứng minh hai thiết bị vật lý. Có thể dùng `once` thay `run` để gửi một heartbeat. Ctrl+C dừng nhẹ nhàng.
 
 HTTP chỉ chấp nhận localhost/loopback; môi trường khác bắt buộc HTTPS có chứng chỉ hợp lệ. Không tự theo redirect. Request timeout 15 giây; heartbeat mặc định 30 giây, tùy chọn 10–60 giây; lỗi mạng/408/429/5xx dùng backoff+jitter tối đa 300 giây. 401/403/410 dừng và lưu trạng thái bị thu hồi, không tự đăng ký lại. Các lỗi giao thức 4xx khác cũng dừng.
 
