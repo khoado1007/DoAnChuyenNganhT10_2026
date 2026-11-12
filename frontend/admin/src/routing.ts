@@ -1,6 +1,7 @@
 import type { UserRole } from './types/auth';
 export type AdminSection = 'overview' | 'users' | 'assets' | 'agents' | 'quotas' | 'tickets';
 export type Route = { kind: 'admin'; section: AdminSection } | { kind: 'portal' | 'forbidden' | 'not-found' };
+export const anonymousLandingPath = '/employee';
 /** Trả về đường dẫn trang chủ tương ứng với vai trò người dùng. */
 export const homeForRole = (role: UserRole) => '/' + role.toLowerCase();
 /**

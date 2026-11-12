@@ -1,14 +1,16 @@
+import { createDeviceSessionStore } from './device-session';
 import { createApiClient } from './client';
 import type { AuthResponse, LoginRequest, UserResponse } from '../types/auth';
 import { isDemoMode } from '../demo/mode';
 import { createDemoFetch } from '../demo/server';
 
 const tokenKey = isDemoMode ? 'itdesk.previewAccessToken' : 'itdesk.accessToken';
+export const deviceSessions = createDeviceSessionStore(sessionStorage, isDemoMode ? 'itdesk.previewDeviceSession' : 'itdesk.deviceSession');
 export const sessionExpiredEvent = 'itdesk:session-expired';
 /** Đọc access token đang lưu trong session của tab hiện tại. */
 export const getToken = () => sessionStorage.getItem(tokenKey);
 /** Xóa access token để kết thúc phiên đăng nhập cục bộ. */
-export const clearSession = () => sessionStorage.removeItem(tokenKey);
+export const clearSession = () => { sessionStorage.removeItem(tokenKey); deviceSessions.clear(); };
 /** API dùng token hiện tại và phát sự kiện khi phiên bị máy chủ từ chối. */
 export const api = createApiClient(import.meta.env.VITE_API_BASE_URL || '/api', getToken, () => {
   clearSession();
@@ -22,6 +24,7 @@ export const api = createApiClient(import.meta.env.VITE_API_BASE_URL || '/api', 
  */
 export async function login(values: LoginRequest): Promise<UserResponse> {
   const result = await api<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(values) });
+  deviceSessions.clear();
   sessionStorage.setItem(tokenKey, result.accessToken);
   return result.user;
 }

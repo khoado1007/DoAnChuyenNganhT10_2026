@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 
 // Kiểm tra phân quyền chính xác theo nhóm route và từ chối đường dẫn con không hợp lệ.
 test('route groups enforce exact roles and reject unknown subpaths', async () => {
-  const { resolveRoute, homeForRole } = await import('../src/routing.ts');
+  const { resolveRoute, homeForRole, anonymousLandingPath } = await import('../src/routing.ts');
   assert.equal(homeForRole('Employee'), '/employee');
+  assert.equal(anonymousLandingPath, '/employee');
   assert.deepEqual(resolveRoute('/admin/users/', 'Admin'), { kind: 'admin', section: 'users' });
   assert.deepEqual(resolveRoute('/technician', 'Technician'), { kind: 'portal' });
   assert.deepEqual(resolveRoute('/admin/users', 'Employee'), { kind: 'forbidden' });
@@ -16,6 +17,8 @@ test('route groups enforce exact roles and reject unknown subpaths', async () =>
 // Kiểm tra sau đăng nhập chỉ khôi phục liên kết sâu phù hợp vai trò.
 test('login resumes an allowed deep link and rejects other role or unknown destinations', async () => {
   const { destinationAfterLogin } = await import('../src/routing.ts');
+  assert.equal(destinationAfterLogin('/employee', 'Employee'), '/employee');
+  assert.equal(destinationAfterLogin('/admin', 'Admin'), '/admin');
   assert.equal(destinationAfterLogin('/admin/users', 'Admin'), '/admin/users');
   assert.equal(destinationAfterLogin('/admin/assets', 'Employee'), '/employee');
   assert.equal(destinationAfterLogin('/login', 'Admin'), '/admin');

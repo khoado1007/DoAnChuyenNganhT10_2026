@@ -41,10 +41,10 @@ npm --prefix frontend/admin ci
 npm --prefix frontend/admin run dev
 ```
 
-Mở http://localhost:5173. Vite chuyển `/api` sang API cổng 5038.
-- `/login`: đăng nhập tài khoản ứng dụng.
-- `/admin`: quản trị.
-- `/employee`: cổng nhân viên.
+Mở http://localhost:5173. URL gốc tự chuyển đến `/employee`; Vite chuyển `/api` sang API cổng 5038.
+- `/employee`: cổng nhân viên và đăng nhập nhân viên nếu chưa có phiên.
+- `/admin`: cổng quản trị và đăng nhập Admin nếu chưa có phiên.
+- `/login`: đường dẫn đăng nhập tương thích; tài khoản sẽ được đưa đến khu vực theo vai trò.
 - `/machines`: chọn máy, đăng nhập Domain ID mô phỏng và làm việc với profile.
 
 Giao diện nhân viên nằm chung React SPA trong `frontend/admin`; `frontend/employee` chưa có ứng dụng riêng.
@@ -82,3 +82,18 @@ Các file `backend/docker-compose.yml`, Dockerfile và test reverse-proxy cổng
 - Trong tiến trình Codex, phân giải alias LocalDB báo lỗi dù SQL Server đang chạy. Lần kiểm tra dùng `TEST_SQLSERVER` trỏ tới named pipe hiện tại của chính instance đó, với Windows Authentication; không thay đổi cấu hình SQL Server. Địa chỉ pipe thay đổi khi instance khởi động lại, không lưu nó vào appsettings.
 - Chỉ database test có GUID được tạo/xóa; không migrate database `ITManagement`.
 - Phạm vi lần này là chuyển đổi backend/database. Lỗi Python Agent và nghiệm thu toàn bộ giao diện với Agent thật chưa được xử lý trong thay đổi này.
+
+## Kiểm tra giao diện khôi phục phiên — 12/11/2026
+
+Cổng nhân viên có nút **Chọn máy làm việc**. Sau khi đăng nhập máy, F5 khôi phục phiên trong cùng tab khi API xác nhận quyền hợp lệ. Lỗi kết nối có nút Thử lại; hết hạn/thu hồi quyền yêu cầu đăng nhập lại. Nội dung chưa bấm Lưu không được giữ qua F5.
+
+Chạy Vite ở cổng 5192 trong terminal riêng, rồi chạy browser smoke (API giả lập, không ghi database):
+
+```powershell
+npm --prefix frontend/admin run dev -- --port 5192 --host 127.0.0.1
+# Terminal khác; cần Playwright và Microsoft Edge.
+# Nếu Playwright không có trong node_modules, đặt PLAYWRIGHT_MODULE tới đường dẫn module đã cài.
+node frontend/admin/tests/session/machine-refresh.cjs
+```
+
+Có thể đặt `ITAM_UI_URL` khi dùng cổng khác, `ITAM_SCREENSHOT_DIR` khi cần ảnh mobile. Test này không thay thế nghiệm thu với API và Python Agent thật.

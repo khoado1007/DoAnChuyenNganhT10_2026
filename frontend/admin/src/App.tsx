@@ -7,7 +7,9 @@ import LoginPage from './pages/LoginPage';
 const AdminPreviewPage = lazy(() => import('./pages/AdminPreviewPage'));
 const MachinesPage = lazy(() => import('./pages/MachinesPage'));
 const PortalPage = lazy(() => import('./pages/PortalPage'));
-import { destinationAfterLogin, homeForRole, resolveRoute } from './routing';
+import { anonymousLandingPath, destinationAfterLogin, homeForRole, resolveRoute } from './routing';
+
+const isAdminPath = (pathname: string) => pathname === '/admin' || pathname.startsWith('/admin/');
 
 /** Điều phối phiên đăng nhập, điều hướng theo vai trò và nội dung trang hiện tại. */
 export default function App() {
@@ -28,8 +30,13 @@ export default function App() {
     setPath(next);
   }
 
-  // Xóa phiên cục bộ và đưa người dùng về màn hình đăng nhập.
-  function logout() { clearSession(); setUser(null); setError(''); navigate('/login', true); }
+  // Giữ đúng cổng đăng nhập theo URL hiện tại sau khi kết thúc phiên.
+  function logout() {
+    clearSession();
+    setUser(null);
+    setError('');
+    navigate(isAdminPath(path) ? '/admin' : anonymousLandingPath, true);
+  }
   useEffect(() => {
     // Đồng bộ đường dẫn khi người dùng dùng nút quay lại hoặc tiến tới của trình duyệt.
     const changed = () => setPath(window.location.pathname);
@@ -37,13 +44,21 @@ export default function App() {
     return () => window.removeEventListener('popstate', changed);
   }, []);
   useEffect(() => {
+    if (path === '/' && !checking && !user) navigate(anonymousLandingPath, true);
+  }, [path, checking, user]);
+  useEffect(() => {
     // Đưa người đã đăng nhập ở trang gốc hoặc trang đăng nhập về trang chủ theo vai trò.
     if (user && ['/', '/login', '/login/'].includes(path)) navigate(homeForRole(user.role), true);
   }, [user, path]);
   useEffect(() => {
     const controller = new AbortController();
     // Kết thúc phiên hiển thị ngay khi API thông báo token hiện tại không còn hợp lệ.
-    const expired = () => { setUser(null); setError(''); navigate(window.location.pathname.startsWith('/machines') ? '/machines' : '/login', true); };
+    const expired = () => {
+      setUser(null);
+      setError('');
+      const currentPath = window.location.pathname;
+      navigate(currentPath.startsWith('/machines') ? '/machines' : isAdminPath(currentPath) ? '/admin' : anonymousLandingPath, true);
+    };
     window.addEventListener(sessionExpiredEvent, expired);
     // Khôi phục hồ sơ bằng token hiện tại; bỏ qua kết quả cũ nếu phiên đã đổi hoặc yêu cầu bị hủy.
     async function restoreSession() {
@@ -63,7 +78,7 @@ export default function App() {
   if (path === '/machines' || path.startsWith('/machines/')) return <MachinesPage path={path} navigate={navigate} />;
   if (checking) return <div className="session-loading"><Spin size="large" /><p>Đang kiểm tra phiên đăng nhập…</p></div>;
   if (error) return <div className="session-loading"><Alert type="error" showIcon message={error} /><Button onClick={() => setAttempt(value => value + 1)}>Thử lại</Button><Button type="text" onClick={logout}>Về đăng nhập</Button></div>;
-  if (!user) return <LoginPage onLogin={value => { setUser(value); navigate(destinationAfterLogin(path, value.role), true); }} />;
+  if (!user) return <LoginPage isAdminRoute={isAdminPath(path)} onLogin={value => { setUser(value); navigate(destinationAfterLogin(path, value.role), true); }} />;
   const route = resolveRoute(['/', '/login', '/login/'].includes(path) ? homeForRole(user.role) : path, user.role);
   if (route.kind === 'forbidden' || route.kind === 'not-found') return <Result status={route.kind === 'forbidden' ? '403' : '404'} title={route.kind === 'forbidden' ? 'Bạn không có quyền truy cập khu vực này' : 'Không tìm thấy trang'} extra={<><Button onClick={() => navigate(homeForRole(user.role), true)}>Về trang của tôi</Button><Button onClick={logout}>Đăng xuất</Button></>} />;
   if (route.kind === 'admin') return <AdminPreviewPage user={user} onLogout={logout} section={route.section} setSection={section => navigate(section === 'overview' ? '/admin' : `/admin/${section}`)} />;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Avatar, Button, Dropdown, Typography } from 'antd';
-import { AppstoreOutlined, FileSearchOutlined, LaptopOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, TeamOutlined, ToolOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, FileSearchOutlined, LaptopOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, TeamOutlined } from '@ant-design/icons';
 import type { UserResponse } from '../types/auth';
 
 export type Section = 'overview' | 'assets' | 'users' | 'tickets' | 'quotas' | 'agents';
@@ -28,7 +28,7 @@ export default function AdminLayout({ user, section, title, onSectionChange, onL
   return <div className={`app-shell ${collapsed ? 'is-collapsed' : ''}`}>
     {mobileNav && <button className="mobile-scrim" aria-label="Đóng điều hướng" onClick={() => setMobileNav(false)} />}
     <aside className={`sidebar ${mobileNav ? 'mobile-open' : ''}`}>
-      <div className="sidebar-brand"><span className="brand-mark"><ToolOutlined /></span><span className="brand-name">IT <b>Desk</b><small>QUẢN TRỊ HỆ THỐNG</small></span></div>
+      <div className="sidebar-brand"><span className="brand-mark logo-mark"><img className="brand-logo" src="/brand/stu-logo.png" alt="STU" /></span><span className="brand-name">IT <b>Desk</b><small>QUẢN TRỊ HỆ THỐNG</small></span></div>
       <nav className="side-nav" aria-label="Điều hướng chính">
         {navItems.map((item, index) => <div key={item.key}>
           {(index === 0 || navItems[index - 1].group !== item.group) && <div className="nav-group-label">{item.group}</div>}

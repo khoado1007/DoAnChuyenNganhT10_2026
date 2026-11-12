@@ -1,4 +1,4 @@
-.demo-banner { position: relative; z-index: 50; min-height: 44px; padding: 9px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: #fff6df; border-bottom: 1px solid #e4c77e; color: #674c13; font: 12px/1.5 'Segoe UI', Arial, sans-serif; }
+.demo-banner { position: relative; z-index: 50; min-height: 44px; padding: 9px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: #fff6df; border-bottom: 1px solid #e4c77e; color: #674c13; font: 12px/1.5 "Be Vietnam Pro", "Segoe UI", Arial, sans-serif; }
 .demo-banner strong { letter-spacing: .07em; margin-right: 14px; font-size: 11px; }
 .demo-actions { display: flex; align-items: center; gap: 12px; }
 .demo-actions button { background: #fff; border: 1px solid #d8bd7b; border-radius: 5px; color: #674c13; cursor: pointer; padding: 4px 12px; font: inherit; }
