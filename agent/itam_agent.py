@@ -226,12 +226,16 @@ class Agent:
             if command is None:
                 return
             operation_id = str(uuid.UUID(command['operationId']))
-            authorized = self.transport('/api/agents/operations/' + operation_id + '/authorize', {},
+            authorization = ({'reconciliationId': command['reconciliationId']}
+                             if command.get('reconciliationId') else {})
+            authorized = self.transport('/api/agents/operations/' + operation_id + '/authorize', authorization,
                                         self.state['credential'])
             if authorized.get('allowed') is not True:
                 result = dict(success=False, errorCode='DEVICE_ACCESS_DENIED', files=[], contentBase64=None)
             else:
                 result = engine.execute(command)
+            if command.get('reconciliationId'):
+                result = dict(result, reconciliationId=command['reconciliationId'])
             pending = (operation_id, result)
             self._file_pending = pending
         self.transport('/api/agents/operations/' + pending[0] + '/result', pending[1], self.state['credential'])

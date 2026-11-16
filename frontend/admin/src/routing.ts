@@ -2,6 +2,10 @@ import type { UserRole } from './types/auth';
 export type AdminSection = 'overview' | 'users' | 'assets' | 'agents' | 'quotas' | 'tickets';
 export type Route = { kind: 'admin'; section: AdminSection } | { kind: 'portal' | 'forbidden' | 'not-found' };
 export const anonymousLandingPath = '/employee';
+export const isMachinePath = (path: string) => ['/', '/employee', '/employee/', '/machines'].includes(path) || path.startsWith('/machines/');
+/** Chính sách cổng đăng nhập cho UI; quyền API vẫn do backend kiểm tra. */
+export const canUseLoginPortal = (admin: boolean, role: UserRole) =>
+  admin ? role === 'Admin' : role === 'Employee' || role === 'Technician';
 /** Trả về đường dẫn trang chủ tương ứng với vai trò người dùng. */
 export const homeForRole = (role: UserRole) => '/' + role.toLowerCase();
 /**

@@ -84,6 +84,8 @@ class LocalProfiles:
         device = checked(self.root / 'Devices' / ids['deviceId'])
         profile = checked(device / 'Profiles' / ids['userId'])
         system = checked(device / 'System' / ids['userId'])
+        if c.get('kind') == 'reconcile':
+            return self._reconcile(c, ids, profile, system)
         system.mkdir(parents=True, mode=0o700, exist_ok=True)
         if system not in self._private_systems:
             if os.name == 'nt':
@@ -238,7 +240,7 @@ class LocalProfiles:
                     del index['live'][key]
                 elif kind == 'restore':
                     source.rename(destination)
-                    index['live'][key] = file_id
+                    index['live'][destination.relative_to(profile).as_posix()] = file_id
                     del index['trash'][file_id]
         if kind == 'list' and c.get('folder') not in ('Desktop', 'Documents', 'RecycleBin'):
             raise FileError('INVALID_RELATIVE_PATH')
@@ -248,6 +250,31 @@ class LocalProfiles:
         result = dict(success=True, errorCode=None, files=inventory, contentBase64=content)
         # Read body không lưu journal; restart báo unknown thay vì đọc lại dữ liệu đã đổi.
         save_json(journal, dict(result=result if content is None else None))
+        return result
+
+    def _reconcile(self, command, ids, profile, system):
+        # Admin-triggered metadata scan only: never replay the interrupted mutation.
+        attempt = str(uuid.UUID(command['reconciliationId']))
+        if command.get('recoveryOnly') is not True:
+            raise FileError('INVALID_FILE_OPERATION')
+        if datetime.fromisoformat(command['expiresAt'].replace('Z', '+00:00')) <= datetime.now(timezone.utc):
+            raise FileError('FILE_OPERATION_EXPIRED')
+        index_path = checked(system / 'index.json')
+        if not index_path.is_file() or any(not checked(profile / folder).is_dir()
+                                           for folder in ('Desktop', 'Documents')):
+            raise FileError('PROFILE_STORAGE_UNAVAILABLE')
+        index = json.loads(index_path.read_text(encoding='utf-8'))
+        if index['profileId'] != ids['profileId']:
+            raise FileError('PROFILE_BINDING_MISMATCH')
+        journal = checked(system / ('reconcile-' + attempt + '.json'))
+        if journal.is_file():
+            return json.loads(journal.read_text(encoding='utf-8'))
+        inventory = self._inventory(profile, index)
+        inventory.extend(self._trash_inventory(system, index))
+        save_json(index_path, index)
+        result = dict(success=True, errorCode=None, files=inventory, contentBase64=None,
+                      reconciliationId=attempt)
+        save_json(journal, result)
         return result
 
     @staticmethod
@@ -273,11 +300,13 @@ class LocalProfiles:
 
     @staticmethod
     def _inventory(profile, index):
+        def fail_scan(error):
+            raise error
         files = []
         live = {}
         visited = 0
         for folder in ('Desktop', 'Documents'):
-            for directory, dirs, names in os.walk(checked(profile / folder), followlinks=False):
+            for directory, dirs, names in os.walk(checked(profile / folder), followlinks=False, onerror=fail_scan):
                 visited += 1 + len(dirs) + len(names)
                 if visited > 10000:
                     raise FileError('PROFILE_SCAN_LIMIT')

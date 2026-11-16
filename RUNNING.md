@@ -43,7 +43,7 @@ npm --prefix frontend/admin run dev
 
 Mở http://localhost:5173. URL gốc tự chuyển đến `/employee`; Vite chuyển `/api` sang API cổng 5038.
 - `/employee`: cổng nhân viên và đăng nhập nhân viên nếu chưa có phiên.
-- `/admin`: cổng quản trị và đăng nhập Admin nếu chưa có phiên.
+- `/admin`: nhập trực tiếp URL để mở cổng Admin, nền navy và thẻ đăng nhập trắng. Không có liên kết sang Admin ở cổng nhân viên/trang chọn máy. Chỉ tài khoản Admin đăng nhập tại cổng này.
 - `/login`: đường dẫn đăng nhập tương thích; tài khoản sẽ được đưa đến khu vực theo vai trò.
 - `/machines`: chọn máy, đăng nhập Domain ID mô phỏng và làm việc với profile.
 
@@ -97,3 +97,39 @@ node frontend/admin/tests/session/machine-refresh.cjs
 ```
 
 Có thể đặt `ITAM_UI_URL` khi dùng cổng khác, `ITAM_SCREENSHOT_DIR` khi cần ảnh mobile. Test này không thay thế nghiệm thu với API và Python Agent thật.
+
+## Nghiệm thu luồng file thật — 15/11/2026
+
+Đã kiểm tra bằng Edge + API HTTP + LocalDB + Python `serve_files` thật (mode `simulated`), trên database và thư mục test riêng: **8/8 ca đạt** gồm portal/chọn máy/đăng nhập, tạo/đọc/sửa/lưu file, F5 giữ phiên, quota đồng thời, chặn nhân viên khác, logout, thu hồi quyền và đối chiếu nội dung file trên ổ đĩa.
+
+Agent kiểm thử đã dừng; kết quả này không có nghĩa Agent đã được đăng ký cho tài sản hiện có của bạn. Để sử dụng với dữ liệu của bạn, tạo/chọn tài sản, cấp enrollment token đúng mode và chạy `enroll`, sau đó `serve-files` theo [hướng dẫn Agent](agent/README.md). Không đưa token vào command line. Real inventory, khởi động lại Agent và các thao tác file còn lại chưa nằm trong đợt nghiệm thu này.
+
+Đợt mở rộng cùng ngày: **9/9 ca đạt** cho đổi tên, sao chép, di chuyển, xóa, khôi phục, nhập CSV, restart tiến trình Python dùng lại state/root, replay request đã xác nhận và đối chiếu file trên đĩa. Restart thực hiện khi thao tác đã hoàn tất; chưa nghiệm thu crash giữa mutation, restart API hoặc nhập Office/PDF binary. Không cần sửa mã ứng dụng trong đợt này.
+
+## Đối soát profile bị gián đoạn — 16/11/2026
+
+Trong **Admin → Quota profile**, cột **Giữ chỗ** và **Trạng thái** cho biết thao tác chưa được xác nhận. Chọn **Đối soát → Yêu cầu đối soát** để Agent kiểm tra metadata của vùng lưu trữ hiện có. Khi thành công, số file/quota được cập nhật và reservation của thao tác cũ được giải phóng. **Nhật ký đối soát** hiển thị 20 sự kiện mới nhất với người yêu cầu và thời gian.
+
+- Agent không xóa file, không đọc nội dung tài liệu để gửi cho Admin và không thực hiện lại lệnh bị gián đoạn.
+- Nếu Agent offline, storage thiếu, không đọc được thư mục hoặc trả metadata không hợp lệ, quota giữ chỗ vẫn được giữ. Giữ đúng state/root của Agent gốc; không xóa state hoặc tăng quota để coi như đã đối soát.
+- Chờ ít nhất 15 giây trước khi yêu cầu lại nếu một attempt còn đang chờ. Kết quả cũ không được ghi đè attempt mới.
+- Sau đối soát, nhân viên kiểm tra danh sách file rồi thực hiện thao tác mới nếu cần. Request cũ trả `OPERATION_RECONCILED`, không được tự replay thành công.
+- Cần chạy API và Agent cùng phiên bản hỗ trợ đối soát. Không cần migration mới: chỉ lưu metadata điều khiển vào trường hiện có, không lưu body tài liệu.
+
+### Bộ kiểm thử tái lập
+
+```powershell
+.\.test-venv\Scripts\python.exe agent\profile_e2e.py --suite all
+```
+
+Chuẩn bị Playwright/Edge, `sqlcmd`, LocalDB và dependency theo [README bộ kiểm thử live](frontend/admin/tests/live/README.md). Runner tạo DB GUID riêng, build API riêng, tự chạy/dừng API/Vite/Agent/Edge và lưu summary/log/ảnh trong `artifacts/profile-e2e/`. Không dùng database nghiệp vụ. Các kết quả cũ phía trên là mốc lịch sử; trạng thái kiểm thử mới nhất nằm trong [file tiến độ](TIEN_DO_DO_AN.md).
+
+### Kịch bản demo ngắn
+
+1. Admin: tạo nhân viên, tài sản; cấp quyền truy cập máy và enrollment token `simulated`.
+2. Enroll Agent vào state riêng rồi chạy `serve-files` với root ứng dụng riêng theo hướng dẫn Agent.
+3. Nhân viên: `/employee` → **Chọn máy làm việc** → Domain ID `COMPANY\<username>` → tạo TXT, lưu, F5, kiểm tra nội dung.
+4. Đổi tên/sao chép/di chuyển/xóa/khôi phục; kiểm tra số file và quota; đăng xuất.
+5. Minh họa sự cố/đối soát bằng suite `recovery` trên DB thử. Không cố tình gây sự cố với tài liệu đang sử dụng.
+
+Admin chỉ quản lý metadata/quota, không có màn hình đọc nội dung file cá nhân. Đây là mô phỏng domain trong ứng dụng, không phải đăng nhập Windows/Active Directory thật.

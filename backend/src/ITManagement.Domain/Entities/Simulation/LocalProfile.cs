@@ -8,6 +8,7 @@ public sealed class LocalProfile
     public int MaxFiles { get; set; } = 10;
     public int UsedFiles { get; set; }
     public bool Ready { get; set; }
+    public string StorageBackend { get; set; } = "Agent";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
@@ -33,6 +34,7 @@ public sealed class DeviceSession
 
 public sealed class ProfileFile
 {
+    public string? StorageKey { get; set; }
     public Guid Id { get; set; }
     public Guid ProfileId { get; set; }
     public string Name { get; set; } = "";

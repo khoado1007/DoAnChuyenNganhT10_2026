@@ -22,9 +22,6 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssembly(assembly);
 
-        // AutoMapper v16+ sử dụng keyed registration
-        services.AddAutoMapper(cfg => cfg.AddMaps(assembly));
-
         return services;
     }
 }

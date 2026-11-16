@@ -26,6 +26,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     // Domain entities
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<Domain.Entities.Asset.Asset> Assets => Set<Domain.Entities.Asset.Asset>();
+    public DbSet<Domain.Entities.Asset.MachineSpecification> MachineSpecifications => Set<Domain.Entities.Asset.MachineSpecification>();
     public DbSet<Domain.Entities.Asset.AssetAssignment> AssetAssignments => Set<Domain.Entities.Asset.AssetAssignment>();
     public DbSet<Domain.Entities.Storage.StorageQuota> StorageQuotas => Set<Domain.Entities.Storage.StorageQuota>();
     public DbSet<Domain.Entities.Storage.FileMetadata> FileMetadata => Set<Domain.Entities.Storage.FileMetadata>();

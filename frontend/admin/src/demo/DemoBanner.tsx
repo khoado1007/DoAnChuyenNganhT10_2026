@@ -20,7 +20,7 @@ export default function DemoBanner() {
     window.history.pushState(null, '', '/machines'); window.dispatchEvent(new PopStateEvent('popstate'));
   }
   return <aside className="demo-banner" aria-label="Chế độ xem trước">
-    <div><strong>DEMO GIAO DIỆN</strong><span>Dữ liệu trong bộ nhớ · Tải lại trang sẽ đặt lại · Chưa lưu qua Agent</span></div>
+    <div><strong>DEMO GIAO DIỆN</strong><span>Dữ liệu trong bộ nhớ · Tải lại trang sẽ đặt lại · Không lưu lên máy chủ</span></div>
     <div className="demo-actions"><button disabled={busy} onClick={() => void openAdmin()}>Admin</button><button onClick={machines}>Mô phỏng máy</button><a href="/login?demo=0">Kết nối API thật ↗</a></div>
   </aside>;
 }

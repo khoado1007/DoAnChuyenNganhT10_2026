@@ -16,6 +16,17 @@ public sealed class ProfilesController(IProfileOperationService profiles) : Cont
     public async Task<ActionResult<ApiResponse<IReadOnlyList<ProfileSummaryResponse>>>> List(CancellationToken ct)
         => Ok(ApiResponse<IReadOnlyList<ProfileSummaryResponse>>.Ok(await profiles.ListProfilesAsync(ct)));
 
+    [HttpPost("{id:guid}/reconcile")]
+    public async Task<IActionResult> Reconcile(Guid id, CancellationToken ct)
+    {
+        await profiles.ReconcileAsync(id, ct);
+        return Ok(ApiResponse<object>.Ok(new { reconciled = true }));
+    }
+
+    [HttpGet("{id:guid}/reconciliation-history")]
+    public async Task<IActionResult> ReconciliationHistory(Guid id, CancellationToken ct)
+        => Ok(ApiResponse<IReadOnlyList<ProfileReconciliationEvent>>.Ok(await profiles.ReconciliationHistoryAsync(id, ct)));
+
     [HttpPut("{id:guid}/quota")]
     public async Task<ActionResult<ApiResponse<object>>> SetQuota(Guid id, [FromBody] SetProfileQuotaRequest request, CancellationToken ct)
     {

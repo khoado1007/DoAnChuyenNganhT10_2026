@@ -12,18 +12,20 @@ using ITManagement.Domain.Enums;
 using ITManagement.Domain.Exceptions;
 using ITManagement.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace ITManagement.Infrastructure.Services;
 
 /// <summary>
 /// Quản lý hạn mức tệp (Quota Reservation), phiên Desktop/Documents mô phỏng và kênh giao tiếp Agent.
 /// </summary>
-public sealed class ProfileOperationService(
+public sealed partial class ProfileOperationService(
     AppDbContext db,
     ICurrentUserService current,
     IAgentOperationDispatcher dispatcher,
-    TimeProvider clock) : IProfileOperationService
+    TimeProvider clock, IConfiguration configuration) : IProfileOperationService
 {
+    private bool UseAgent => configuration.GetValue<bool>("Simulation:UseAgent");
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
     private static string Hash(string secret) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(secret)));
@@ -60,12 +62,16 @@ public sealed class ProfileOperationService(
 
         var hasGrant = await db.DeviceAccessGrants.AnyAsync(
             g => g.AssetId == assetId && g.UserId == userId && g.RevokedAt == null, ct);
-        if (!hasGrant)
+        if (UseAgent && !hasGrant)
             throw Forbidden("Quyền truy cập thiết bị đã bị thu hồi.");
 
         var profile = await db.LocalProfiles.SingleOrDefaultAsync(
             p => p.Id == session.ProfileId, ct)
             ?? throw new NotFoundException("LocalProfile", session.ProfileId);
+
+        if (profile.UserId != userId || profile.AssetId != assetId || profile.StorageBackend != (UseAgent ? "Agent" : "Server"))
+            throw Forbidden("Vùng lưu trữ không thuộc phiên hiện tại hoặc cần chuyển dữ liệu Agent cũ.");
+        if (!UseAgent && asset.Type is not (AssetType.Desktop or AssetType.Laptop or AssetType.Server)) throw Forbidden();
 
         return (session, profile, user, asset);
     }
@@ -101,7 +107,10 @@ public sealed class ProfileOperationService(
     public async Task<ProfileSnapshot> ExecuteOperationAsync(
         Guid assetId, Guid sessionId, FileActionRequest request, CancellationToken ct)
     {
+        if (!UseAgent) return await ExecuteServerOperationAsync(assetId, sessionId, request, ct);
         var (session, profile, user, asset) = await ValidateSessionAsync(assetId, sessionId, ct);
+        if (request.Kind == "reconcile")
+            throw Forbidden("Đối soát phải được Quản trị viên yêu cầu qua luồng riêng.");
         if (request.RequestId == Guid.Empty)
             throw new SimulationException(400, "INVALID_REQUEST_ID", "Request ID phải là GUID hợp lệ.");
         var requestHash = RequestHash(request);
@@ -132,7 +141,9 @@ public sealed class ProfileOperationService(
                 await tx.CommitAsync(ct);
                 return await BuildSnapshotAsync(session, lockedProfile, user, asset, null, ct);
             }
-            if (existingOp.State is "Pending" or "Unknown")
+            if (existingOp.State == "Reconciled")
+                throw new SimulationException(409, "OPERATION_RECONCILED", "Đã đối soát vùng lưu trữ. Kiểm tra danh sách file trước khi tạo thao tác mới.");
+            if (existingOp.State is "Pending" or "Unknown" or "Reconciling")
                 throw new SimulationException(409, "OPERATION_IN_PROGRESS", "Thao tác trước đó đang chờ Agent xác nhận; hãy thử lại bằng cùng Request ID.");
             if (existingOp.State == "Failed")
                 throw FileOperationError(existingOp.ErrorCode);
@@ -146,6 +157,12 @@ public sealed class ProfileOperationService(
         {
             throw new SimulationException(409, "FILE_COUNT_QUOTA_EXCEEDED", "Đã đạt giới hạn số lượng tệp (Quota).");
         }
+
+        // Một profile chỉ có một thao tác chưa xác nhận (kể cả list/read).
+        // Kiểm tra dưới profile lock để trả lỗi nghiệp vụ thay vì vi phạm unique index.
+        if (await db.ProfileOperations.AnyAsync(o => o.ProfileId == profile.Id && o.CompletedAt == null, ct))
+            throw new SimulationException(409, "OPERATION_IN_PROGRESS",
+                "Thao tác trước đó chưa được Agent xác nhận. Vui lòng kiểm tra trạng thái trước khi thao tác tiếp.");
 
         var agent = await db.Agents.AsNoTracking()
             .SingleOrDefaultAsync(a => a.AssetId == assetId && a.RevokedAt == null && a.DisabledAt == null, ct)
@@ -221,7 +238,9 @@ public sealed class ProfileOperationService(
                       orderby p.CreatedAt descending
                       select new ProfileSummaryResponse(
                           p.Id, u.Id, u.Username, u.FullName, a.Id, a.Name, a.AssetCode,
-                          p.MaxFiles, p.UsedFiles, p.Ready, p.CreatedAt)).ToListAsync(ct);
+                          p.MaxFiles, p.UsedFiles, p.Ready, p.CreatedAt,
+                          db.ProfileOperations.Where(o => o.ProfileId == p.Id && o.CompletedAt == null).Select(o => o.State).FirstOrDefault(),
+                          db.ProfileOperations.Where(o => o.ProfileId == p.Id && o.CompletedAt == null).Sum(o => o.ReservedFiles), p.StorageBackend)).ToListAsync(ct);
     }
 
     public async Task SetProfileQuotaAsync(Guid profileId, int maxFiles, CancellationToken ct)
@@ -263,12 +282,14 @@ public sealed class ProfileOperationService(
         return new AgentPollResponse(command);
     }
 
-    public async Task<AgentAuthorizeResponse> AuthorizeOperationAsync(string agentCredential, Guid operationId, CancellationToken ct)
+    public async Task<AgentAuthorizeResponse> AuthorizeOperationAsync(string agentCredential, Guid operationId, CancellationToken ct, Guid? reconciliationId = null)
     {
         var agent = await AuthenticateAgentAsync(agentCredential, ct);
         var op = await db.ProfileOperations.AsNoTracking().SingleOrDefaultAsync(o => o.Id == operationId, ct);
         if (op is null || op.AgentId != agent.Id || op.CompletedAt != null)
             return new AgentAuthorizeResponse(false, "OPERATION_NOT_FOUND");
+        if (ReadAttempt(op) != null || reconciliationId != null)
+            return new AgentAuthorizeResponse(await CanReconcileAsync(op, reconciliationId, ct), "RECONCILIATION_AUTHORIZATION");
 
         var session = await db.DeviceSessions.AsNoTracking().SingleOrDefaultAsync(s => s.Id == op.SessionId, ct);
         if (session is null || session.EndedAt != null || session.ExpiresAt <= Now)
@@ -290,7 +311,13 @@ public sealed class ProfileOperationService(
     {
         var agent = await AuthenticateAgentAsync(agentCredential, ct);
 
+        var known = await db.ProfileOperations.AsNoTracking().SingleOrDefaultAsync(o => o.Id == operationId, ct);
+        if (known is null || known.AgentId != agent.Id) throw new NotFoundException("ProfileOperation", operationId);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // Same lock order as enqueue/reconcile: profile before operation.
+        var profile = await db.LocalProfiles
+            .FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {known.ProfileId}")
+            .SingleAsync(ct);
         var op = await db.ProfileOperations
             .FromSqlInterpolated($"SELECT * FROM profile_operations WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {operationId}")
             .SingleOrDefaultAsync(ct);
@@ -298,16 +325,23 @@ public sealed class ProfileOperationService(
         if (op is null || op.AgentId != agent.Id)
             throw new NotFoundException("ProfileOperation", operationId);
 
+        if (result.ReconciliationId is Guid attemptId)
+        {
+            var attempt = ReadAttempt(op);
+            if (op.CompletedAt != null || op.State != "Reconciling" || attempt?.Id != attemptId) return;
+            await ApplyReconciliationAsync(op, profile, result, attempt, ct);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            dispatcher.TryComplete(attemptId, result);
+            return;
+        }
+        if (ReadAttempt(op) != null || op.State is "Reconciling" or "Reconciled") return;
         if (op.CompletedAt is not null)
         {
             // Idempotent completion acknowledgement
             dispatcher.TryComplete(operationId, result);
             return;
         }
-
-        var profile = await db.LocalProfiles
-            .FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {op.ProfileId}")
-            .SingleAsync(ct);
 
         if (result.Success)
         {

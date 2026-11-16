@@ -196,3 +196,69 @@ def test_atomic_new_file_write_does_not_replace_existing_file(tmp_path):
         LocalProfiles._write(system, destination, b'overwrite')
 
     assert destination.read_bytes() == b'keep'
+
+
+@pytest.mark.parametrize('target_folder,new_name', [
+    ('Documents', None), ('Desktop', 'restored.txt'), ('Documents', 'restored.txt')])
+def test_restore_to_new_path_keeps_identity_after_restart(tmp_path, target_folder, new_name):
+    engine = LocalProfiles(tmp_path, 'simulated')
+    created = engine.execute(command(kind='create', contentBase64='c2F2ZWQ='))
+    file_id = created['files'][0]['fileId']
+    assert engine.execute(command(kind='delete', fileId=file_id, name=None, folder=None))['success']
+    restore = command(kind='restore', fileId=file_id, name=None, folder=None,
+                      targetFolder=target_folder, newName=new_name)
+    restored = engine.execute(restore)
+    assert restored['success']
+    assert restored['files'] == [dict(fileId=file_id, name=new_name or 'note.txt',
+        folder=target_folder, sizeBytes=5, extension='.txt')]
+    restarted = LocalProfiles(tmp_path, 'simulated')
+    assert restarted.execute(restore) == restored
+    read = restarted.execute(command(kind='read', fileId=file_id, name=None, folder=None))
+    assert read['success']
+    assert base64.b64decode(read['contentBase64']) == b'saved'
+
+
+def test_reconcile_scans_metadata_without_replaying_interrupted_mutation(tmp_path, monkeypatch):
+    engine = LocalProfiles(tmp_path, 'simulated')
+    kept = engine.execute(command(kind='create', name='kept.txt', contentBase64='c2F2ZWQ='))
+    kept_id = kept['files'][0]['fileId']
+    failed = command(kind='create', name='interrupted.txt')
+    monkeypatch.setattr(engine, '_write', lambda *args, **kwargs: (_ for _ in ()).throw(OSError('crash')))
+    assert engine.execute(failed)['errorCode'] == 'FILE_OPERATION_UNKNOWN'
+    attempt = command(operationId=failed['operationId'], kind='reconcile', recoveryOnly=True,
+                      reconciliationId=str(uuid.uuid4()), name=None)
+    restarted = LocalProfiles(tmp_path, 'simulated')
+    result = restarted.execute(attempt)
+    assert result['success']
+    assert result['contentBase64'] is None
+    assert result['reconciliationId'] == attempt['reconciliationId']
+    assert result['files'] == kept['files']
+    assert restarted.execute(attempt) == result
+    assert restarted.execute(failed)['errorCode'] == 'FILE_OPERATION_UNKNOWN'
+    read = restarted.execute(command(kind='read', fileId=kept_id, name=None, folder=None))
+    assert base64.b64decode(read['contentBase64']) == b'saved'
+    assert not list(tmp_path.rglob('interrupted.txt'))
+
+
+def test_reconcile_refuses_missing_storage_and_unmarked_recovery(tmp_path):
+    engine = LocalProfiles(tmp_path, 'simulated')
+    attempt = command(kind='reconcile', recoveryOnly=True, reconciliationId=str(uuid.uuid4()))
+    assert engine.execute(attempt)['errorCode'] == 'PROFILE_STORAGE_UNAVAILABLE'
+    assert engine.execute(command())['success']
+    assert engine.execute(dict(attempt, recoveryOnly=False))['errorCode'] == 'INVALID_FILE_OPERATION'
+    assert engine.execute(dict(attempt, profileId=str(uuid.uuid4())))['errorCode'] == 'PROFILE_BINDING_MISMATCH'
+
+
+def test_reconcile_does_not_accept_partial_directory_scan(tmp_path, monkeypatch):
+    import local_profiles
+    engine = LocalProfiles(tmp_path, 'simulated')
+    assert engine.execute(command(kind='create', name='kept.txt'))['success']
+    def denied_walk(top, *args, **kwargs):
+        if kwargs.get('onerror'):
+            kwargs['onerror'](PermissionError('unreadable subtree'))
+        return iter(())
+    monkeypatch.setattr(local_profiles.os, 'walk', denied_walk)
+    result = engine.execute(command(kind='reconcile', recoveryOnly=True, reconciliationId=str(uuid.uuid4())))
+    assert not result['success']
+    assert result['errorCode'] == 'FILE_OPERATION_UNKNOWN'
+    assert not list(tmp_path.glob('simulated/Devices/*/System/*/reconcile-*.json'))

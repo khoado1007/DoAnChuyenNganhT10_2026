@@ -33,6 +33,8 @@ Thumbs.db
 **/.pytest_cache/
 agent/state/
 /.test-venv/
+/artifacts/profile-e2e/
+/artifacts/login-portals/
 
 # Current Windows setup instructions
 !/RUNNING.md

@@ -18,15 +18,19 @@ public sealed record FileActionRequest(
     string? ContentBase64 = null);
 
 public sealed record LocalFileDto(Guid FileId, string Name, string Folder, long SizeBytes, string Extension);
-public sealed record AgentFileResult(bool Success, string? ErrorCode, LocalFileDto[] Files, string? ContentBase64 = null);
+public sealed record AgentFileResult(bool Success, string? ErrorCode, LocalFileDto[] Files, string? ContentBase64 = null,
+    Guid? ReconciliationId = null);
 public sealed record AgentFileCommand(Guid OperationId, Guid DeviceId, Guid UserId, Guid ProfileId,
     string Kind, string? Folder, string? Name, string? NewName, string? TargetFolder, Guid? FileId,
-    string? ContentBase64, int MaxFiles, DateTime ExpiresAt, bool RecoveryOnly = false);
+    string? ContentBase64, int MaxFiles, DateTime ExpiresAt, bool RecoveryOnly = false, Guid? ReconciliationId = null);
 public sealed record QuotaSnapshot(int MaxFiles, int UsedFiles, int ReservedFiles, int RemainingFiles, bool OverQuota);
 public sealed record ProfileSnapshot(Guid SessionId, Guid DeviceId, Guid ProfileId, string DomainId,
     string DeviceName, IReadOnlyList<LocalFileDto> Files, QuotaSnapshot Quota, string? ContentBase64 = null);
 public sealed record SetProfileQuotaRequest([Range(0, 10000)] int MaxFiles);
 public sealed record ProfileSummaryResponse(Guid ProfileId, Guid UserId, string Username, string FullName,
-    Guid DeviceId, string DeviceName, string AssetCode, int MaxFiles, int UsedFiles, bool Ready, DateTime CreatedAt);
+    Guid DeviceId, string DeviceName, string AssetCode, int MaxFiles, int UsedFiles, bool Ready, DateTime CreatedAt,
+    string? PendingState = null, int ReservedFiles = 0, string StorageBackend = "Agent");
+public sealed record ProfileReconciliationEvent(DateTime CreatedAt, string Action, string? Actor);
+public sealed record AgentAuthorizeRequest(Guid? ReconciliationId = null);
 public sealed record AgentPollResponse(AgentFileCommand? Operation);
 public sealed record AgentAuthorizeResponse(bool Allowed, string? Reason = null);

@@ -12,6 +12,84 @@ namespace ITManagement.IntegrationTests;
 
 public sealed class ProfileOperationTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Admin_reconciliation_uses_current_attempt_and_retains_reservation_on_failure(bool success)
+    {
+        using var admin = await Login();
+        var (employee, userId, _) = await Employee(admin);
+        var (assetId, agent, _) = await EnrolledAsset(admin);
+        await Data(await admin.PutAsJsonAsync($"/api/assets/{assetId}/access/{userId}", new { }));
+        var session = await Data(await employee.PostAsJsonAsync($"/api/machines/{assetId}/sessions", new { }));
+        var profileId = session.GetProperty("profileId").GetGuid();
+        var sessionId = session.GetProperty("sessionId").GetGuid();
+        employee.DefaultRequestHeaders.Add("X-Device-Session", sessionId.ToString());
+        var request = new { kind = "create", requestId = Guid.NewGuid(), folder = "Desktop", name = "interrupted.txt" };
+        var pending = employee.PostAsJsonAsync($"/api/machines/{assetId}/files/operations", request);
+        var original = await PollOperationAsync(agent);
+        var operationId = original.GetProperty("operationId").GetGuid();
+        Assert.Equal(HttpStatusCode.GatewayTimeout, (await pending).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await employee.PostAsJsonAsync($"/api/profiles/{profileId}/reconcile", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await employee.PostAsJsonAsync($"/api/machines/{assetId}/files/operations", new
+                { kind = "reconcile", requestId = Guid.NewGuid() })).StatusCode);
+        var reconcile = admin.PostAsJsonAsync($"/api/profiles/{profileId}/reconcile", new { });
+        await Task.WhenAny(reconcile, Task.Delay(1000));
+        if (reconcile.IsCompleted) Assert.True((await reconcile).IsSuccessStatusCode);
+        var command = await PollOperationAsync(agent);
+        Assert.Equal("reconcile", command.GetProperty("kind").GetString());
+        Assert.True(command.GetProperty("recoveryOnly").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, command.GetProperty("contentBase64").ValueKind);
+        var attempt = command.GetProperty("reconciliationId").GetGuid();
+        Assert.False((await Data(await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/authorize", new { })))
+            .GetProperty("allowed").GetBoolean());
+        // An old normal result must not release quota while reconciliation is in progress.
+        await Data(await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/result", new { success = true, files = Array.Empty<object>() }));
+        await Data(await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/result", new
+            { success = true, files = Array.Empty<object>(), reconciliationId = Guid.NewGuid() }));
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Equal(1, (await db.ProfileOperations.SingleAsync(o => o.Id == operationId)).ReservedFiles);
+            // Admin metadata scan is permitted after the employee session has ended.
+            if (success) (await db.DeviceSessions.SingleAsync(s => s.Id == sessionId)).EndedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+        Assert.True((await Data(await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/authorize", new { reconciliationId = attempt })))
+            .GetProperty("allowed").GetBoolean());
+        Assert.False((await Data(await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/authorize", new { reconciliationId = Guid.NewGuid() })))
+            .GetProperty("allowed").GetBoolean());
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/result", new
+        {
+            success = true, files = Array.Empty<object>(), reconciliationId = attempt, contentBase64 = "c2VjcmV0"
+        })).StatusCode);
+        await Data(await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/result", new
+        {
+            success, errorCode = success ? null : "PROFILE_STORAGE_UNAVAILABLE",
+            files = Array.Empty<object>(), reconciliationId = attempt
+        }));
+        Assert.Equal(success ? HttpStatusCode.OK : HttpStatusCode.BadGateway, (await reconcile).StatusCode);
+        // Once Admin has fenced the original mutation, failed scans must not re-enable it.
+        Assert.False((await Data(await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/authorize", new { })))
+            .GetProperty("allowed").GetBoolean());
+        await Data(await agent.PostAsJsonAsync($"/api/agents/operations/{operationId}/result", new
+            { success = true, files = Array.Empty<object>() }));
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var op = await db.ProfileOperations.SingleAsync(o => o.Id == operationId);
+            Assert.Equal(success ? 0 : 1, op.ReservedFiles);
+            Assert.Equal(success ? "Reconciled" : "Unknown", op.State);
+            Assert.Equal(success, op.CompletedAt != null);
+            Assert.True(await db.AppAuditEvents.AnyAsync(a => a.ResourceId == profileId &&
+                a.Action == (success ? "ProfileReconciliationCompleted" : "ProfileReconciliationFailed") && a.ActorId != null));
+        }
+        var history = await Data(await admin.GetAsync($"/api/profiles/{profileId}/reconciliation-history"));
+        Assert.Equal(2, history.GetArrayLength());
+    }
+
     private static async Task<JsonElement> Data(HttpResponseMessage response)
     {
         var text = await response.Content.ReadAsStringAsync();
@@ -211,6 +289,18 @@ public sealed class ProfileOperationTests(ApiFactory factory) : IClassFixture<Ap
         var snapshot = await Data(await employee.GetAsync($"/api/machines/{assetId}/profile"));
         Assert.Equal(1, snapshot.GetProperty("quota").GetProperty("reservedFiles").GetInt32());
         Assert.Equal(0, snapshot.GetProperty("quota").GetProperty("remainingFiles").GetInt32());
+
+        // Even non-adding operations must not collide with the one-in-flight index.
+        var list = await employee.PostAsJsonAsync($"/api/machines/{assetId}/files/operations", new
+        {
+            kind = "list",
+            requestId = Guid.NewGuid(),
+            folder = "Desktop"
+        });
+        Assert.Equal(HttpStatusCode.Conflict, list.StatusCode);
+        var listError = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        Assert.Equal("OPERATION_IN_PROGRESS", listError.RootElement.GetProperty("errors")
+            .GetProperty("code")[0].GetString());
 
         var next = await employee.PostAsJsonAsync($"/api/machines/{assetId}/files/operations", new
         {

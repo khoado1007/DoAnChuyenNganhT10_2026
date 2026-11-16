@@ -1,5 +1,5 @@
 import { isDemoMode } from '../demo/mode';
-import DeviceAccessModal from './DeviceAccessModal';
+import SpecificationModal from './SpecificationModal';
 import AssignmentModal from './AssignmentModal';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd';
@@ -66,7 +66,7 @@ export default function AssetsPage() {
     { title: 'Loại', dataIndex: 'type', render: (value: AssetType) => types.find(type => type.value === value)?.label },
     { title: 'Serial', dataIndex: 'serialNumber' }, { title: 'Vị trí', dataIndex: 'location' },
     { title: 'Vòng đời', dataIndex: 'status', render: (value: AssetStatus) => <Tag>{statuses.find(status => status.value === value)?.label}</Tag> },
-    { title: 'Thao tác', key: 'actions', render: (_: unknown, row: AssetResponse) => <Space wrap><Button onClick={() => show(row)}>Chi tiết / sửa</Button><Button onClick={() => setAccess(row.id)}>Quyền đăng nhập</Button><Button onClick={() => setAllocation(row)}>Cấp phát / lịch sử</Button></Space> },
+    { title: 'Thao tác', key: 'actions', render: (_: unknown, row: AssetResponse) => <Space wrap><Button onClick={() => show(row)}>Chi tiết / sửa</Button><Button onClick={() => setAccess(row.id)}>Cấu hình mô phỏng</Button><Button onClick={() => setAllocation(row)}>Bàn giao / lịch sử</Button></Space> },
   ];
   return <main className="page-content">
     <div className="page-heading"><div><Typography.Title level={1}>Tài sản</Typography.Title><Typography.Text>Danh mục thiết bị · {isDemoMode ? 'Dữ liệu demo' : 'Dữ liệu từ máy chủ'}</Typography.Text></div><Button type="primary" onClick={() => show(null)}>Thêm tài sản</Button></div>
@@ -77,7 +77,7 @@ export default function AssetsPage() {
       <Button onClick={() => setRevision(value => value + 1)}>Làm mới</Button>
     </Space>
     <Table<AssetResponse> columns={columns} rowKey="id" dataSource={data?.items ?? []} loading={loading} scroll={{ x: 950 }} pagination={{ current: page, pageSize: 10, total: data?.totalCount ?? 0, showSizeChanger: false, onChange: setPage }} locale={{ emptyText: 'Chưa có tài sản phù hợp' }} />
-    {access && <DeviceAccessModal deviceId={access} onClose={() => setAccess(null)} />}
+    {access && <SpecificationModal assetId={access} onClose={() => setAccess(null)} />}
     {allocation && <AssignmentModal asset={data?.items.find(row => row.id === allocation.id) ?? allocation} onClose={() => setAllocation(null)} onChanged={() => setRevision(value => value + 1)} />}
     <Modal title={editing ? `Chi tiết ${editing.assetCode}` : 'Thêm tài sản'} open={open} footer={null} destroyOnClose onCancel={() => { if (!saving) setOpen(false); }}>
       {modalError && <Alert type="error" showIcon message={modalError} style={{ marginBottom: 12 }} />}
@@ -90,7 +90,7 @@ export default function AssetsPage() {
         <Form.Item name="model" label="Model"><Input maxLength={100} /></Form.Item>
         <Form.Item name="location" label="Vị trí"><Input maxLength={200} /></Form.Item>
         <Form.Item name="notes" label="Ghi chú"><Input.TextArea maxLength={1000} /></Form.Item>
-        {editing && <><Form.Item name="status" label="Vòng đời" rules={[{ required: true }]}><Select disabled={editing.status === 'Assigned' || editing.status === 'Retired'} options={statuses.map(status => ({ ...status, disabled: status.value === 'Assigned' }))} /></Form.Item><Alert type="info" style={{ marginBottom: 16 }} message="Ngừng sử dụng là trạng thái cuối. Cấp phát/trả thiết bị được thực hiện qua luồng riêng; trạng thái kết nối Agent không đổi vòng đời tài sản." /></>}
+        {editing && <><Form.Item name="status" label="Vòng đời" rules={[{ required: true }]}><Select disabled={editing.status === 'Assigned' || editing.status === 'Retired'} options={statuses.map(status => ({ ...status, disabled: status.value === 'Assigned' }))} /></Form.Item><Alert type="info" style={{ marginBottom: 16 }} message="Ngừng sử dụng là trạng thái cuối. Bàn giao chỉ ghi nhận trách nhiệm quản lý; mọi nhân viên đang hoạt động được sử dụng các máy đang hoạt động." /></>}
         <Button type="primary" htmlType="submit" loading={saving}>Lưu tài sản</Button>
       </Form>
     </Modal>

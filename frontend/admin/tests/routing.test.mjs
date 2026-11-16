@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+test('default and employee entries show machine selection before authentication', async () => {
+  const { isMachinePath } = await import('../src/routing.ts');
+  for (const path of ['/', '/employee', '/employee/', '/machines', '/machines/pc-1/login', '/machines/pc-1/desktop']) assert.equal(isMachinePath(path), true);
+  for (const path of ['/admin', '/admin/assets', '/technician', '/employees']) assert.equal(isMachinePath(path), false);
+});
+
+test('login entries accept only their intended roles', async () => {
+  const { canUseLoginPortal } = await import('../src/routing.ts');
+  assert.equal(canUseLoginPortal(true, 'Admin'), true);
+  assert.equal(canUseLoginPortal(true, 'Employee'), false);
+  assert.equal(canUseLoginPortal(true, 'Technician'), false);
+  assert.equal(canUseLoginPortal(false, 'Admin'), false);
+  assert.equal(canUseLoginPortal(false, 'Employee'), true);
+  assert.equal(canUseLoginPortal(false, 'Technician'), true);
+});
+
 // Kiểm tra phân quyền chính xác theo nhóm route và từ chối đường dẫn con không hợp lệ.
 test('route groups enforce exact roles and reject unknown subpaths', async () => {
   const { resolveRoute, homeForRole, anonymousLandingPath } = await import('../src/routing.ts');

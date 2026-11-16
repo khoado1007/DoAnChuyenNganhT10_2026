@@ -7,14 +7,16 @@ using ITManagement.Domain.Enums;
 using ITManagement.Domain.Exceptions;
 using ITManagement.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace ITManagement.Infrastructure.Services;
 
 /// <summary>Grant độc lập với assignment; phiên mô phỏng không phải Windows logon.</summary>
-public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService current, TimeProvider clock)
+public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService current, TimeProvider clock, IConfiguration configuration)
     : IDeviceSessionService
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
+    private bool UseAgent => configuration.GetValue<bool>("Simulation:UseAgent");
     private static SimulationException Forbidden() => new(403, "DEVICE_ACCESS_DENIED", "Bạn không có phiên hoặc quyền sử dụng máy này.");
     private void RequireAdmin()
     {
@@ -24,13 +26,19 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {id}")
             .SingleOrDefaultAsync(ct) ?? throw new NotFoundException("Asset", id);
 
-    public async Task<IReadOnlyList<MachineResponse>> MachinesAsync(CancellationToken ct) =>
-        await (from asset in db.Assets.AsNoTracking()
+    public async Task<IReadOnlyList<MachineResponse>> MachinesAsync(CancellationToken ct)
+    {
+        if (!UseAgent) return await db.Assets.AsNoTracking()
+            .Where(a => (a.Type == AssetType.Desktop || a.Type == AssetType.Laptop || a.Type == AssetType.Server)
+                && (a.Status == AssetStatus.Available || a.Status == AssetStatus.Assigned))
+            .OrderBy(a => a.AssetCode).Select(a => new MachineResponse(a.Id, a.AssetCode, a.Name, "simulated")).ToListAsync(ct);
+        return await (from asset in db.Assets.AsNoTracking()
                join agent in db.Agents.AsNoTracking() on asset.Id equals agent.AssetId
                where agent.RevokedAt == null && agent.DisabledAt == null
                    && (asset.Status == AssetStatus.Available || asset.Status == AssetStatus.Assigned)
                orderby asset.AssetCode
                select new MachineResponse(asset.Id, asset.AssetCode, asset.Name, agent.Mode)).ToListAsync(ct);
+    }
 
     public async Task<IReadOnlyList<DeviceAccessResponse>> AccessAsync(Guid assetId, CancellationToken ct)
     {
@@ -81,14 +89,15 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {userId}").SingleOrDefaultAsync(ct);
         if (user is null || user.Status != UserStatus.Active || user.Role != UserRole.Employee
             || asset.Status is not (AssetStatus.Available or AssetStatus.Assigned)
-            || !await db.DeviceAccessGrants.AnyAsync(x => x.AssetId == assetId && x.UserId == userId && x.RevokedAt == null, ct)) throw Forbidden();
+            || (!UseAgent && asset.Type is not (AssetType.Desktop or AssetType.Laptop or AssetType.Server))
+            || (UseAgent && !await db.DeviceAccessGrants.AnyAsync(x => x.AssetId == assetId && x.UserId == userId && x.RevokedAt == null, ct))) throw Forbidden();
         var existing = await db.DeviceSessions.SingleOrDefaultAsync(x => x.AssetId == assetId && x.EndedAt == null, ct);
         if (existing is not null)
         {
             var owner = await db.AppUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == existing.UserId, ct);
             if (existing.ExpiresAt > Now && owner is { Status: UserStatus.Active, Role: UserRole.Employee }
                 && owner.SecurityVersion == existing.SecurityVersion
-                && await db.DeviceAccessGrants.AnyAsync(x => x.AssetId == assetId && x.UserId == existing.UserId && x.RevokedAt == null, ct))
+                && (!UseAgent || await db.DeviceAccessGrants.AnyAsync(x => x.AssetId == assetId && x.UserId == existing.UserId && x.RevokedAt == null, ct)))
                 throw new SimulationException(409, "DEVICE_SESSION_CONFLICT", "Máy đang có phiên mô phỏng hoạt động.");
             existing.EndedAt = Now;
             // Giải phóng partial unique index trước INSERT phiên mới.
@@ -97,9 +106,19 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         var profile = await db.LocalProfiles.SingleOrDefaultAsync(x => x.AssetId == assetId && x.UserId == userId, ct);
         if (profile is null)
         {
-            profile = new LocalProfile { AssetId = assetId, UserId = userId, CreatedAt = Now };
+            profile = new LocalProfile { AssetId = assetId, UserId = userId, CreatedAt = Now, StorageBackend = UseAgent ? "Agent" : "Server" };
             db.LocalProfiles.Add(profile);
         }
+        else if (!UseAgent && profile.StorageBackend != "Server")
+        {
+            // Existing Agent bytes are not on the server. Never silently discard their metadata.
+            if (profile.Ready || await db.ProfileFiles.AnyAsync(f => f.ProfileId == profile.Id, ct)
+                || await db.ProfileOperations.AnyAsync(o => o.ProfileId == profile.Id, ct))
+                throw new SimulationException(409, "LEGACY_PROFILE_REQUIRES_MIGRATION", "Máy này có dữ liệu Agent cũ. Cần chuyển dữ liệu trước khi mở vùng file trên server.");
+            profile.StorageBackend = "Server";
+        }
+        else if (UseAgent && profile.StorageBackend != "Agent")
+            throw new SimulationException(409, "PROFILE_BACKEND_MISMATCH", "Profile này lưu trên server, không thuộc luồng Agent.");
         var session = new DeviceSession { AssetId = assetId, UserId = userId, ProfileId = profile.Id,
             SecurityVersion = user.SecurityVersion, ExpiresAt = Now.AddHours(8) };
         db.DeviceSessions.Add(session);

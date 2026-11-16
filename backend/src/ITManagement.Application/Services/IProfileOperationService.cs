@@ -11,7 +11,9 @@ public interface IProfileOperationService
     Task<ProfileSnapshot> ExecuteOperationAsync(Guid assetId, Guid sessionId, FileActionRequest request, CancellationToken ct);
     Task<IReadOnlyList<ProfileSummaryResponse>> ListProfilesAsync(CancellationToken ct);
     Task SetProfileQuotaAsync(Guid profileId, int maxFiles, CancellationToken ct);
+    Task ReconcileAsync(Guid profileId, CancellationToken ct);
+    Task<IReadOnlyList<ProfileReconciliationEvent>> ReconciliationHistoryAsync(Guid profileId, CancellationToken ct);
     Task<AgentPollResponse> PollOperationAsync(string agentCredential, CancellationToken ct);
-    Task<AgentAuthorizeResponse> AuthorizeOperationAsync(string agentCredential, Guid operationId, CancellationToken ct);
+    Task<AgentAuthorizeResponse> AuthorizeOperationAsync(string agentCredential, Guid operationId, CancellationToken ct, Guid? reconciliationId = null);
     Task HandleAgentResultAsync(string agentCredential, Guid operationId, AgentFileResult result, CancellationToken ct);
 }

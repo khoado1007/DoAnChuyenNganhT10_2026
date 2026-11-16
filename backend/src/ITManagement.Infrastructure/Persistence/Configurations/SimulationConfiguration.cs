@@ -14,6 +14,7 @@ public sealed class SimulationConfiguration : IEntityTypeConfiguration<LocalProf
     {
         b.ToTable("local_profiles", t => t.HasCheckConstraint("CK_Profile_Counts", "\"MaxFiles\" >= 0 AND \"UsedFiles\" >= 0"));
         b.HasKey(x => x.Id);
+        b.Property(x => x.StorageBackend).HasMaxLength(16).HasDefaultValue("Agent");
         b.HasIndex(x => new { x.UserId, x.AssetId }).IsUnique();
         b.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<Asset>().WithMany().HasForeignKey(x => x.AssetId).OnDelete(DeleteBehavior.Restrict);
@@ -34,6 +35,7 @@ public sealed class SimulationConfiguration : IEntityTypeConfiguration<LocalProf
     public void Configure(EntityTypeBuilder<ProfileFile> b)
     {
         b.ToTable("profile_files"); b.HasKey(x => x.Id);
+        b.Property(x => x.StorageKey).HasMaxLength(64);
         b.Property(x => x.Name).HasMaxLength(512); b.Property(x => x.Folder).HasMaxLength(16);
         b.Property(x => x.Extension).HasMaxLength(32);
         b.HasIndex(x => new { x.ProfileId, x.Folder, x.Name }).IsUnique();

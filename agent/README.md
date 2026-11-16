@@ -1,6 +1,6 @@
 # Python Agent: đăng ký và heartbeat
 
-> **Hướng triển khai hiện tại — 06/11/2026:** xem [hướng dẫn chạy Windows/LocalDB](../RUNNING.md). Agent lưu nội dung bền vững trên ổ local; server quản lý quyền/quota và metadata đo lường. Các mô tả heartbeat/connectivity bên dưới thuộc baseline cũ, không phải yêu cầu làm dashboard online/offline. Luồng file mới chưa được nghiệm thu end-to-end; không suy ra hoàn tất từ lệnh CLI.
+> **Hướng triển khai hiện tại — 16/11/2026:** xem [hướng dẫn chạy Windows/LocalDB](../RUNNING.md). Agent lưu nội dung bền vững trên ổ local; server quản lý quyền/quota và metadata đo lường. Các mô tả heartbeat/connectivity bên dưới thuộc baseline cũ, không phải yêu cầu làm dashboard online/offline. Luồng file đã có bộ kiểm thử live trên LocalDB/API/Edge/Python Agent mode simulated; xem phần kiểm thử tái lập trong RUNNING.md và tiến độ để biết phạm vi đã đạt.
 
 
 Một codebase cho `real` và `simulated`, mỗi instance dùng một file state riêng. `real` chỉ gửi hostname, OS, CPU, tổng RAM và phiên bản Agent khi truyền `--consent-inventory`. `simulated` đọc fixture và server giữ nhãn chế độ từ token, không cho heartbeat tự đổi nhãn. Không tạo tài khoản OS, không chạy lệnh từ xa, không đọc tài liệu cá nhân.
@@ -95,3 +95,11 @@ Real Agent dùng `--mode real` và state riêng. Storage được tách thành `
 Agent poll `/api/agents/operations/poll`, recheck `/api/agents/operations/{id}/authorize`, rồi gửi `/api/agents/operations/{id}/result`. Khi gửi result gặp lỗi tạm thời, giữ result trong RAM và thử lại trước khi nhận thao tác mới. Journal chỉ chứa metadata; không lưu body response. Restart replay kết quả mutation đã xác nhận; intent bị gián đoạn hoặc read chưa được ACK trả `FILE_OPERATION_UNKNOWN`, cần reconcile, không tự chạy lại mutation. `recoveryOnly` không được tạo/ghi nội dung mới khi API đã mất ephemeral payload.
 
 Quota đếm mọi regular file, kể cả nested/hidden/desktop.ini; thư mục và Recycle ngoài profile không tính. Tạo/copy/restore kiểm tra quota, edit/rename/move không tăng số file. Delete chuyển vào Recycle riêng, không purge. Binary import tối đa 8 MiB; chỉ `.txt`/`.csv` cho phép sửa. Giới hạn dung lượng trống kỹ thuật 16 MiB độc lập quota. Profile scan tối đa 10.000 mục để tránh duyệt vô hạn. Agent từ chối traversal, ADS, reserved names, symlink/junction/reparse point và hardlink; người có quyền ghi trực tiếp bằng cùng OS account vẫn có thể sửa dữ liệu ngoài ứng dụng.
+
+## Đối soát khi thao tác bị gián đoạn
+
+Admin yêu cầu đối soát tại màn hình **Quota profile**. API gửi lệnh `reconcile` với mã attempt; Agent kiểm tra vùng profile hiện có, quét metadata đầy đủ và trả kết quả gắn đúng attempt. Nội dung tài liệu không được đọc/gửi trong luồng này, file không bị xóa và mutation cũ không được thực hiện lại. Thiếu index/profile, lỗi quyền thư mục hoặc binding sai phải báo lỗi thay vì coi vùng lưu trữ là rỗng.
+
+Sau khi cập nhật API, cần khởi động lại Agent với cùng state/root để hỗ trợ giao thức đối soát. Agent cũ không hỗ trợ luồng mới sẽ không giải phóng reservation; không xóa state để thử sửa. Nhật ký cũ vẫn giữ để chặn replay mutation chưa rõ kết quả.
+
+Bộ chạy kiểm thử: [frontend/admin/tests/live/README.md](../frontend/admin/tests/live/README.md). Test fault injection nằm riêng trong `agent/tests/profile_fault_worker.py`, không phải chức năng hoặc tham số của Agent production.

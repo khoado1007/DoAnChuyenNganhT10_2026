@@ -48,7 +48,8 @@ export default function AssignmentModal({ asset, onClose, onChanged }: { asset: 
     } catch (e) { setError(e instanceof Error ? e.message : 'Không lưu được cấp phát.'); }
     finally { setSaving(false); }
   }
-  return <Modal title={`Cấp phát ${asset.assetCode}`} open onCancel={() => { if (!saving) onClose(); }} footer={null} width={900}>
+  return <Modal title={`Bàn giao / lịch sử ${asset.assetCode}`} open onCancel={() => { if (!saving) onClose(); }} footer={null} width={900}>
+    <p>Bàn giao ghi nhận người chịu trách nhiệm tài sản. Mọi nhân viên đang hoạt động vẫn có thể đăng nhập các máy đang hoạt động.</p>
     {error && <Alert type="error" showIcon message={error} />}
     {userError && <Alert type="error" showIcon message={userError} />}
     <Button style={{ marginBlock: 12 }} disabled={saving} onClick={() => setRevision(r => r + 1)}>Làm mới lịch sử</Button>

@@ -1,3 +1,4 @@
+import type { MachineSpecification } from '../types/machine-information.ts';
 import type { UserResponse } from '../types/auth.ts';
 import type { AssetResponse } from '../types/asset.ts';
 import type { MachineProfile, ProfileFile } from '../api/machines.ts';
@@ -22,10 +23,12 @@ export function createDemoFetch(): typeof fetch {
   ];
   const passwords = new Map(users.map(u => [u.id, 'Demo@12345']));
   const assets: AssetResponse[] = [
-    { id: 'pc-001', assetCode: 'PC-001', name: 'Máy trạm phòng Sản phẩm', type: 'Desktop', status: 'Assigned', serialNumber: 'DEMO-DL-2026-01', manufacturer: 'Dell', model: 'OptiPlex 7010', location: 'Tầng 2 · Phòng Sản phẩm', notes: 'Thiết bị dùng chung theo quyền đăng nhập.', createdAt: now(), updatedAt: null },
-    { id: 'pc-002', assetCode: 'PC-002', name: 'Máy trạm mô phỏng', type: 'Desktop', status: 'Available', serialNumber: 'DEMO-SIM-002', manufacturer: 'Simulation', model: 'Virtual Workstation', location: 'Phòng thực hành', notes: 'Agent mô phỏng cho bài trình diễn.', createdAt: now(), updatedAt: null },
+    { id: 'pc-001', assetCode: 'PC-001', name: 'Máy trạm phòng Sản phẩm', type: 'Desktop', status: 'Assigned', serialNumber: 'DEMO-DL-2026-01', manufacturer: 'Dell', model: 'OptiPlex 7010', location: 'Tầng 2 · Phòng Sản phẩm', notes: 'Thiết bị dùng chung cho nhân viên đang hoạt động.', createdAt: now(), updatedAt: null },
+    { id: 'pc-002', assetCode: 'PC-002', name: 'Máy trạm mô phỏng', type: 'Desktop', status: 'Available', serialNumber: 'DEMO-SIM-002', manufacturer: 'Simulation', model: 'Virtual Workstation', location: 'Phòng thực hành', notes: 'Máy mô phỏng cho bài trình diễn.', createdAt: now(), updatedAt: null },
     { id: 'pc-003', assetCode: 'PC-003', name: 'Laptop phòng Kế toán', type: 'Laptop', status: 'Available', serialNumber: 'DEMO-LN-2026-03', manufacturer: 'Lenovo', model: 'ThinkPad E14', location: 'Tầng 1 · Phòng Kế toán', notes: '', createdAt: now(), updatedAt: null },
   ];
+  const specifications = new Map<string, Partial<MachineSpecification>>();
+  const information = (asset: AssetResponse) => ({ ...asset, assetId: asset.id, ...specifications.get(asset.id), software: specifications.get(asset.id)?.software ?? [], status: 'simulated' });
   const profiles: Profile[] = [];
   const sessions: Session[] = [];
   const grants = new Set(['pc-001:demo-khoa', 'pc-001:demo-an', 'pc-002:demo-khoa', 'pc-002:demo-an', 'pc-003:demo-an']);
@@ -61,17 +64,17 @@ export function createDemoFetch(): typeof fetch {
       if (!user || body.password !== passwords.get(user.id)) return fail('Sai tài khoản demo hoặc mật khẩu. Dùng Demo@12345.', 401);
       return response({ accessToken: `preview:${user.id}`, user });
     }
-    if (path === '/machines') return response(assets.filter(a => !['Disabled', 'Retired', 'UnderMaintenance'].includes(a.status)).map(a => ({ id: a.id, assetCode: a.assetCode, name: a.name, mode: agents.find(x => x.assetId === a.id)?.mode ?? 'simulated' })));
+    if (path === '/machines') return response(assets.filter(a => !['Disabled', 'Retired', 'UnderMaintenance'].includes(a.status)).map(a => ({ id: a.id, assetCode: a.assetCode, name: a.name, mode: 'simulated' })));
     if (path === '/not-implemented') return fail('Chức năng chưa có trong demo.', 404);
     if (!actor) return fail('Vui lòng đăng nhập tài khoản demo.', 401);
     if (path === '/auth/me') return response(actor);
     if (path === '/me/assets') return response(assignments.filter(a => a.userId === actor.id && a.status === 'Active').map(a => ({ ...a, assetName: assets.find(x => x.id === a.assetId)?.name, assetCode: assets.find(x => x.id === a.assetId)?.assetCode })));
 
-    const machineMatch = path.match(/^\/machines\/([^/]+)\/(sessions|profile|logout|files\/operations)$/);
+    const machineMatch = path.match(/^\/machines\/([^/]+)\/(sessions|profile|information|logout|files\/operations)$/);
     if (machineMatch) {
       const [, deviceId, action] = machineMatch;
       const device = assets.find(a => a.id === deviceId);
-      if (!device || ['Disabled', 'Retired', 'UnderMaintenance'].includes(device.status) || actor.role !== 'Employee' || !grants.has(`${deviceId}:${actor.id}`)) return fail('Bạn chưa được cấp quyền sử dụng máy này.', 403);
+      if (!device || ['Disabled', 'Retired', 'UnderMaintenance'].includes(device.status) || actor.role !== 'Employee') return fail('Tài khoản hoặc máy không hoạt động, hoặc tài khoản không phải nhân viên.', 403);
       let profile = profiles.find(p => p.userId === actor.id && p.deviceId === deviceId);
       if (action === 'sessions') {
         const other = sessions.find(s => s.deviceId === deviceId && s.userId !== actor.id);
@@ -85,6 +88,7 @@ export function createDemoFetch(): typeof fetch {
       if (!session || !profile) return fail('Phiên trên máy không còn hiệu lực.', 403);
       if (action === 'logout') { sessions.splice(sessions.indexOf(session), 1); return response(true); }
       if (action === 'profile') return response(snapshot(session, profile));
+      if (action === 'information') return response(information(device));
       const requestKey = `${profile.id}:${body.requestId}`;
       if (replay.has(requestKey)) {
         if (replay.get(requestKey) !== JSON.stringify(body)) return fail('Mã thao tác đã dùng cho yêu cầu khác.', 409);
@@ -153,11 +157,15 @@ export function createDemoFetch(): typeof fetch {
       const asset: AssetResponse = { id: uid(), assetCode: body.assetCode, name: body.name, type: body.type ?? 'Desktop', status: 'Available', serialNumber: body.serialNumber ?? '', manufacturer: body.manufacturer ?? '', model: body.model ?? '', location: body.location ?? '', notes: body.notes ?? '', createdAt: now(), updatedAt: null };
       assets.push(asset); return response(asset);
     }
-    const assetMatch = path.match(/^\/assets\/([^/]+)(?:\/(access|assignments|assign|return|revoke)(?:\/([^/]+))?)?$/);
+    const assetMatch = path.match(/^\/assets\/([^/]+)(?:\/(specification|access|assignments|assign|return|revoke)(?:\/([^/]+))?)?$/);
     if (assetMatch) {
       const [, id, action, userId] = assetMatch; const asset = assets.find(a => a.id === id);
       if (!asset) return fail('Không tìm thấy tài sản.', 404);
       if (!action) { if (method === 'PUT') Object.assign(asset, body, { updatedAt: now() }); return response(asset); }
+      if (action === 'specification') {
+        if (method === 'PUT') specifications.set(id, body);
+        return response(information(asset));
+      }
       if (action === 'access') {
         if (method === 'GET') return response(users.filter(u => grants.has(`${id}:${u.id}`)).map(u => ({ userId: u.id, username: u.username, fullName: u.fullName })));
         if (method === 'DELETE') { grants.delete(`${id}:${userId}`); for (let i = sessions.length - 1; i >= 0; i--) if (sessions[i].deviceId === id && sessions[i].userId === userId) sessions.splice(i, 1); }
@@ -178,7 +186,7 @@ export function createDemoFetch(): typeof fetch {
       if (action === 'revoke') { for (const key of grants) if (key.startsWith(`${id}:`)) grants.delete(key); for (let i = sessions.length - 1; i >= 0; i--) if (sessions[i].deviceId === id) sessions.splice(i, 1); }
       return response(assignment);
     }
-    if (path === '/profiles') return response(profiles.map(p => ({ profileId: p.id, userId: p.userId, username: users.find(u => u.id === p.userId)?.username, deviceId: p.deviceId, deviceName: assets.find(a => a.id === p.deviceId)?.name, maxFiles: p.maxFiles, usedFiles: p.files.length })));
+    if (path === '/profiles') return response(profiles.map(p => ({ profileId: p.id, userId: p.userId, username: users.find(u => u.id === p.userId)?.username, deviceId: p.deviceId, deviceName: assets.find(a => a.id === p.deviceId)?.name, maxFiles: p.maxFiles, usedFiles: p.files.length, storageBackend: 'Server' })));
     if (/^\/profiles\/[^/]+\/quota$/.test(path) && method === 'PUT') {
       const profile = profiles.find(p => p.id === path.split('/')[2]);
       if (!profile) return fail('Không tìm thấy profile.', 404);

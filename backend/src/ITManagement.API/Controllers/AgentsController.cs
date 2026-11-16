@@ -72,8 +72,8 @@ public sealed class AgentsController(IAgentService agents, IProfileOperationServ
     /// <summary>Agent xác thực quyền thực thi lệnh trước khi thao tác đĩa.</summary>
     [AllowAnonymous]
     [HttpPost("operations/{id:guid}/authorize")]
-    public async Task<ActionResult<ApiResponse<AgentAuthorizeResponse>>> Authorize(Guid id, CancellationToken ct)
-        => Ok(ApiResponse<AgentAuthorizeResponse>.Ok(await profileOperations.AuthorizeOperationAsync(GetAgentCredential(), id, ct)));
+    public async Task<ActionResult<ApiResponse<AgentAuthorizeResponse>>> Authorize(Guid id, [FromBody] AgentAuthorizeRequest request, CancellationToken ct)
+        => Ok(ApiResponse<AgentAuthorizeResponse>.Ok(await profileOperations.AuthorizeOperationAsync(GetAgentCredential(), id, ct, request.ReconciliationId)));
 
     /// <summary>Agent báo cáo kết quả thực thi lệnh cục bộ.</summary>
     [AllowAnonymous]

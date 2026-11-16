@@ -7,7 +7,7 @@ import LoginPage from './pages/LoginPage';
 const AdminPreviewPage = lazy(() => import('./pages/AdminPreviewPage'));
 const MachinesPage = lazy(() => import('./pages/MachinesPage'));
 const PortalPage = lazy(() => import('./pages/PortalPage'));
-import { anonymousLandingPath, destinationAfterLogin, homeForRole, resolveRoute } from './routing';
+import { anonymousLandingPath, destinationAfterLogin, homeForRole, isMachinePath, resolveRoute } from './routing';
 
 const isAdminPath = (pathname: string) => pathname === '/admin' || pathname.startsWith('/admin/');
 
@@ -48,7 +48,7 @@ export default function App() {
   }, [path, checking, user]);
   useEffect(() => {
     // Đưa người đã đăng nhập ở trang gốc hoặc trang đăng nhập về trang chủ theo vai trò.
-    if (user && ['/', '/login', '/login/'].includes(path)) navigate(homeForRole(user.role), true);
+    if (user && ['/login', '/login/'].includes(path)) navigate(homeForRole(user.role), true);
   }, [user, path]);
   useEffect(() => {
     const controller = new AbortController();
@@ -75,7 +75,7 @@ export default function App() {
     void restoreSession();
     return () => { controller.abort(); window.removeEventListener(sessionExpiredEvent, expired); };
   }, [attempt]);
-  if (path === '/machines' || path.startsWith('/machines/')) return <MachinesPage path={path} navigate={navigate} />;
+  if (isMachinePath(path)) return <MachinesPage path={path} navigate={navigate} />;
   if (checking) return <div className="session-loading"><Spin size="large" /><p>Đang kiểm tra phiên đăng nhập…</p></div>;
   if (error) return <div className="session-loading"><Alert type="error" showIcon message={error} /><Button onClick={() => setAttempt(value => value + 1)}>Thử lại</Button><Button type="text" onClick={logout}>Về đăng nhập</Button></div>;
   if (!user) return <LoginPage isAdminRoute={isAdminPath(path)} onLogin={value => { setUser(value); navigate(destinationAfterLogin(path, value.role), true); }} />;

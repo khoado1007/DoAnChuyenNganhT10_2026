@@ -1,8 +1,8 @@
 # Tiến độ và bàn giao đồ án IT Management
 
-**Cập nhật gần nhất:** 12/11/2026 — giờ Việt Nam.
+**Cập nhật gần nhất:** 16/11/2026 — giờ Việt Nam.
 **Workspace đúng:** `D:\DoAnChuyenNganhT10_2026` (đường dẫn cũ `D:\DoAnChuyenNganh` không tồn tại).
-**Điểm tiếp tục:** Đã áp dụng nhận diện xanh-trắng, logo STU và font Be Vietnam Pro; URL gốc mặc định vào `/employee`, còn Admin truy cập riêng qua `/admin`. Việc tiếp theo là nghiệm thu API/Agent thật và tiếp tục các chức năng còn thiếu; demo không thay cho nghiệm thu vận hành thật.
+**Điểm tiếp tục:** Đã hoàn tất gỡ AutoMapper không dùng: backend84/84PASS trên SQL riêng sau thay đổi, build0 lỗi/0 cảnh báo, audit5 project không phát hiện package có lỗ hổng. API mới5038 và frontend5173 đã chạy, Swagger/API machines qua proxy/hai trang login trả200; runtime không còn AutoMapper. Hai cổng đăng nhập đã xong (frontend30, UI giả lập9 ở mốc trước). Bước tiếp theo: chốt phạm vi nhật ký/metadata Admin tổng hợp với người dùng; không làm lại đối soát đã nghiệm thu.
 
 ## 1. Cách dùng file này
 
@@ -62,6 +62,12 @@ Các file chính:
 
 ## 4. Bằng chứng kiểm thử
 
+**Mốc mới nhất — 16/11/2026:** backend **84/84 PASS**, Agent **46 PASS / 1 SKIP**, frontend **29/29 PASS**, live HTTP/SQL/Python/Edge **26/26 kiểm tra PASS** (core8, files12, recovery6). Frontend build và API build PASS. Review độc lập không còn finding cần sửa. Cảnh báo chunk >500kB và cảnh báo restore AutoMapper vẫn được ghi nhận; chưa xử lý dependency trong phiên này.
+
+Log cuối: `docs/profile-live/backend-final.log`, `agent-final.log`, `frontend-tests.log`, `frontend-build.log`, `live-final.log`; các file docs/log là local bị bỏ qua Git. Runner và test source đã chuyển vào repo, xem RUNNING.md.
+
+Các dòng phía dưới là bằng chứng mốc lịch sử trước đợt mở rộng:
+
 | Kiểm tra | Kết quả gần nhất | Ý nghĩa / giới hạn |
 | --- | --- | --- |
 | Backend sau chuyển đổi | **82/82 đạt** | Chạy trên SQL Server LocalDB thật, database test riêng |
@@ -88,12 +94,14 @@ Database test dùng tiền tố `itmanagement_test_` hoặc `itam_dashboard_test
 
 | Ưu tiên | Phần việc | Bằng chứng hiện tại |
 | --- | --- | --- |
-| 2 | Hoàn thiện luồng nhân viên | Cổng `/employee` chưa có lối vào màn hình chọn máy; không tự tách ứng dụng chỉ vì folder employee trống |
-| 2 | Nghiệm thu khôi phục phiên với API thật | Frontend F5 đã sửa và qua browser smoke với API giả lập; chưa chạy chuỗi API + Agent thật trong phiên 12/11 |
-| 2 | Nhật ký tổng hợp và metadata file cho Admin | Có audit trong backend nhưng chưa có màn hình tra cứu đầy đủ |
+| Đã đạt | Luồng nhân viên và lối vào chọn máy | Portal → chọn máy → đăng nhập Domain → Desktop đã qua E2E thật ngày 15/11; giữ một SPA |
+| Đã đạt | Khôi phục phiên với API/Agent thật | F5 giữ sessionId, đọc lại nội dung đã lưu; thu hồi quyền rồi F5 không lộ profile. Python worker thật, mode simulated |
+| 2 | Nhật ký tổng hợp và metadata file cho Admin | Đã có nhật ký đối soát20 sự kiện/profile và quota/pending; chưa có màn hình audit tổng hợp, cần chốt phạm vi |
 | 3 | Ticket cơ bản | Có model/repository, UI đang thông báo chưa triển khai; chưa có luồng gửi và xử lý hoàn chỉnh |
 | 3 | Thống nhất phần storage cũ và mới | API quota byte/lưu file server còn song song với profile Agent/quota số file; cần trao đổi trước khi loại bỏ hoặc thay đổi |
-| 3 | Nghiệm thu end-to-end và tài liệu | Chưa chạy toàn bộ kịch bản trình duyệt + Real/Simulated Agent sau chuyển đổi |
+| Đã đạt | Bộ chạy tái lập và đối soát | Live26/26 gồm PDF/DOCX, restartAPI/Agent, crash trước write rồi Admin đối soát; xem giới hạn trong nhật ký16/11 |
+| 2 | Kiểm tra dependency | Restore báo NU1903 với AutoMapper16.2.0; cần xác minh ảnh hưởng/phiên bản vá, chưa tự thay package |
+| 3 | Real inventory / nhiều thiết bị | Chưa nghiệm thu hai máy vật lý; không tự thu thập inventory nếu chưa được người dùng cho phép |
 
 Một số skill tham chiếu các tài liệu chưa tìm thấy (`STORAGE_POLICY.md`, `DEMO_ACCEPTANCE.md`, v.v.). Không giả định nội dung các file này hoặc xem skill là bằng chứng chức năng đã hoàn thành.
 
@@ -104,8 +112,9 @@ Một số skill tham chiếu các tài liệu chưa tìm thấy (`STORAGE_POLIC
 3. Đã xem logo trong `img/`; giữ tên IT Desk, dùng ảnh STU có sẵn và không tự thêm thông tin tác giả/trường chưa cung cấp.
 4. Đã áp dụng theme trắng-xanh, logo trên trang đăng nhập/layout/portal/mô phỏng máy và favicon. Không đổi luồng nghiệp vụ hay phân quyền.
 5. Đã chạy frontend tests/build và kiểm tra giao diện bằng trình duyệt demo; chi tiết và giới hạn được ghi tại mục 7.
-6. Tiếp tục nghiệm thu Employee → chọn máy → đăng nhập → tạo file → F5 → đăng xuất với API/Agent thật trên database và storage test riêng.
-7. Các màn hình nhật ký/metadata Admin, ticket và hợp nhất storage cũ/mới vẫn cần trao đổi phạm vi; không tự loại bỏ API/dữ liệu cũ hoặc cấp quyền đọc file cá nhân cho Admin.
+6. Đã hoàn thành bộ chạy `agent/profile_e2e.py --suite all`, hướng dẫn demo và Admin đối soát có nhật ký ngày 16/11. Không cần làm lại; chỉ chạy lại suite liên quan khi thay đổi.
+7. Bước độc lập tiếp theo: kiểm tra cảnh báo AutoMapper bằng nguồn chính thức và các chỗ sử dụng hiện có, xác định thay đổi tối thiểu rồi chạy test liên quan.
+8. Nhật ký/metadata Admin tổng hợp, ticket và hợp nhất storage cũ/mới vẫn cần trao đổi phạm vi; không tự loại bỏ API/dữ liệu cũ hoặc cấp quyền đọc file cá nhân cho Admin.
 
 ### 6.1. Yêu cầu cá nhân hóa frontend — chốt ngày 12/11/2026
 
@@ -150,6 +159,8 @@ Một số skill tham chiếu các tài liệu chưa tìm thấy (`STORAGE_POLIC
 **Các file cập nhật:** `frontend/admin/src/main.tsx` (Ant Design theme), `src/styles.css`, `src/pages/LoginPage.tsx`, `src/layouts/AdminLayout.tsx`, `src/pages/PortalPage.tsx`, `frontend/admin/index.html` và tài nguyên trong `frontend/admin/public/brand/`.
 
 ## 7. Trạng thái bàn giao hiện tại
+
+**Hiện tại 16/11:** thay đổi trong workspace chưa commit/push; gồm Agent/API/UI đối soát, regression tests, bộ chạy live và tài liệu. Main API đã restart bằng binary mới, xác nhận Swagger có endpoint đối soát/nhật ký và `/api/machines`/UI trả200. Không còn test server5189/5190; không có Agent gắn vào dữ liệu nghiệp vụ. Các ghi chú12/11 phía dưới là lịch sử, trạng thái kết thúc mới nhất nằm ở nhật ký16/11.
 
 - Phần SQL Server và Agent đã nằm trong commit `de4f33a` khi bắt đầu phiên 12/11. Thông tin “chưa commit” của ngày trước không còn phản ánh HEAD hiện tại.
 - Thay đổi frontend ngày 12/11 và file tiến độ đang ở workspace, chưa commit/push trong phiên này.
@@ -214,3 +225,121 @@ Một số skill tham chiếu các tài liệu chưa tìm thấy (`STORAGE_POLIC
 - Kiểm tra browser DEMO ở Admin, màn hình chọn máy và Desktop/File Manager; logo hiển thị, responsive hẹp 375px không tràn ngang. Không lưu ảnh screenshot vào repo.
 - Chưa xác minh bằng API/Agent thật; đây vẫn là nghiệm thu giao diện trên demo.
 - Theo yêu cầu tiếp theo, đã thay Georgia/Segoe UI UI text bằng Be Vietnam Pro cho toàn bộ màn hình, đóng gói font nội bộ; URL gốc vào cổng nhân viên và `/admin` vào cổng quản trị riêng.
+
+### 15/11/2026 — tiếp tục chẩn đoán đăng nhập chậm
+
+- Bắt đầu từ HEAD `636fca6`, workspace sạch. Các ghi chú “chưa commit” ngày 12/11 ở trên là lịch sử, không phải trạng thái hiện tại.
+- Người dùng xác nhận đã mở SSMS/kết nối LocalDB. Không cài/sửa dịch vụ SQL, không dùng Docker, không tác động dữ liệu `ITManagement`.
+- Đọc lại log `artifacts/login-diagnostic-2026-11-12.log`: 2/2 test đạt nhưng các request login thành công mất 11,46–20,25 giây. Đây là thời gian integration run cũ, không phải đo click trên máy người dùng.
+- Tạo công cụ đo local tại `docs/login-diagnostics/` (bị Git bỏ qua): console gọi AuthService/Identity thật, tạo database GUID riêng, đảo thứ tự pooling qua 9 vòng và xóa database riêng thành công khi kết thúc. Không in mật khẩu/token.
+- Kết quả trung vị 8 vòng sau vòng đầu: mở SQL **6,86 ms** khi pooling tắt, **0,12 ms** khi bật; AuthService admin **179,73 / 134,79 ms**; COMPANY alias **151,54 / 144,52 ms**. Hash password khoảng 94–245 ms trong mẫu đo, không giảm độ mạnh hash.
+- Pooling giúp giảm chi phí kết nối nhưng dữ liệu hiện tại chưa chứng minh nó gây ra độ trễ 11–20 giây. Không thay appsettings theo suy đoán.
+- Chạy lại hai integration test `Domain_alias_uses_existing_identity_and_rejects_other_domains` và `Profile_snapshot_and_file_operation_flow_with_agent_handshake`: **2/2 PASS**, tổng 21,37 giây gồm setup. API login thành công **847/847/443/450 ms**, tạo session **166 ms**, file operation qua handshake giả lập **988 ms**. TEST_SQLSERVER vẫn Pooling=False.
+- SQL thật trong phép đo đi qua named pipe của instance đang chạy, Encrypt=False; chưa bao phủ alias `(localdb)` + Encrypt=True của cấu hình ứng dụng, mạng HTTP thật hoặc tốc độ render trình duyệt. COMPANY alias trong console dùng cùng admin để cô lập username; integration test có employee nhưng chưa có Python Agent thật.
+- Luồng máy có login → tạo session → ensure Desktop; Agent nghỉ 1 giây sau mỗi vòng poll thành công, backend timeout chờ kết quả 10 giây. Không có nghĩa mọi login đều chờ 10 giây.
+- Log/report/source local: `docs/login-diagnostics/results-2026-11-15.log`, `http-tests-2026-11-15.log`, `README.md`, `Program.cs`, `LoginDiagnostics.csproj`. Không tái dùng named pipe cũ sau khi LocalDB khởi động lại.
+- Restore công cụ xuất cảnh báo NU1903 cho AutoMapper 16.2.0; ghi nhận để kiểm tra dependency riêng, chưa xác minh ảnh hưởng và không coi đây là nguyên nhân chậm đăng nhập.
+- Thay đổi được Git theo dõi trong lượt này: chỉ file tiến độ. Chưa commit/push, chưa sửa mã frontend/backend/Agent hoặc cấu hình runtime.
+- Bước kế tiếp: đo Network/Performance trình duyệt trong lúc tái hiện lag, tách POST auth/login, tải JS và request trang đích; đối chiếu log server cùng thời điểm. Sau đó mới chọn thay đổi tối ưu dựa trên điểm nghẽn thực tế. Tiếp tục nghiệm thu API + Python Agent thật trên dữ liệu test riêng.
+
+### 15/11/2026 — chạy ứng dụng cho người dùng
+
+- Đã chạy API cổng 5038 và Vite cổng 5173 bằng tiến trình nền ẩn, giữ chạy để người dùng thử. Không đổi appsettings, migrate/seed hoặc đặt lại tài khoản.
+- Kiểm tra HTTP 200: trang Admin, Swagger, API machines qua Vite proxy. API machines đọc SQL bằng cấu hình thực tế, lần đầu khoảng 3,95 giây gồm khởi tạo EF.
+- URL: http://127.0.0.1:5173/admin?demo=0 và http://127.0.0.1:5173/employee?demo=0. Dùng tài khoản hiện có. Chưa chạy Python Agent trong lượt này.
+- Log tại artifacts/api-local.out.log, api-local.err.log, ui-local.out.log, ui-local.err.log.
+- Quy ước mới: trả lời ngắn, chỉ kết quả/thống kê chính và URL/hướng dẫn chạy; không kể quá trình. Đã lưu vào AGENTS.md local và tiến độ.
+
+### 15/11/2026 — nghiệm thu luồng chính với Python Agent thật
+
+- Người dùng xác nhận bước đăng nhập đã ổn và yêu cầu tiếp tục. Không còn coi chậm đăng nhập là lỗi đang chặn; chỉ đo lại nếu tái xuất hiện.
+- Bộ kiểm tra local: `docs/profile-live/run.py` và `browser.cjs` (artifact Git bỏ qua). API Kestrel cổng 5189, Vite 5190, Edge headless, LocalDB GUID riêng. Không mock request trình duyệt hoặc handshake Agent.
+- Python chạy Agent.serve_files thật, enrollment thật, mode simulated; không thu thập inventory máy người dùng, không đụng Desktop/Documents Windows. File được ghi trong root test riêng.
+- **8/8 kiểm tra đạt**: (1) portal → chọn máy → đăng nhập COMPANY → ensure Desktop; (2) tạo/đọc/sửa/lưu file từ UI; (3) F5 giữ đúng session và nội dung; (4) hai yêu cầu tạo đồng thời với quota 2 chỉ một yêu cầu thành công, một 409, usedFiles=2/reservedFiles=0; (5) nhân viên khác bị 403 khi đọc profile/đăng nhập máy chưa cấp quyền; (6) logout xóa token và phiên cũ bị 403; (7) đăng nhập lại, thu hồi quyền rồi F5 không hiển thị file, xóa tham chiếu phiên; (8) kiểm tra file vật lý có đúng nội dung UTF-8 đã lưu.
+- Không phát sinh JS pageerror. Đã xem ảnh `docs/profile-live/run-d65ff401a1284cfb83d3075884a99110/desktop-live.png`; log tổng `docs/profile-live/latest.log`, log HTTP trong thư mục run đó.
+- Hai lần chuẩn bị đầu lỗi ở harness đọc encoding log SQL/cấu hình JWT, một lần selector nút login không tính icon. Đã sửa harness và chạy lại đầy đủ đạt; không sửa ứng dụng để vượt test.
+- Đã xóa đúng database GUID do harness tạo, dừng API/Vite/Agent thử. Giữ file/screenshot/log local để đối chiếu. App người dùng tại 5173 và API 5038 vẫn chạy; không có Agent được gắn vào dữ liệu nghiệp vụ trong lượt này.
+- Không sửa mã production hoặc cấu hình hệ thống; chỉ cập nhật tiến độ và hướng dẫn chạy. Không cần chạy lại toàn bộ unit suite do không đổi mã ứng dụng.
+- Giới hạn: một host, một Agent mode simulated, chưa test Real inventory/hai máy vật lý, chưa restart Agent hoặc kiểm tra hết rename/move/copy/delete/restore/import. Đây là các ca tiếp theo, không cần làm lại luồng chính đã đạt.
+
+### 15/11/2026 — mở rộng thao tác file và restart Agent
+
+- **9/9 kiểm tra đạt** trên Edge, Kestrel HTTP, LocalDB GUID riêng và Python Agent CLI chạy thành tiến trình thật (mode simulated).
+- Kiểm tra qua UI: đổi tên; sao chép Desktop → Documents; di chuyển không tăng quota; xóa vào Recycle giảm quota; khôi phục trả nội dung/quota; nhập CSV giữ nguyên byte.
+- Sau khi thao tác đã hoàn tất, dừng tiến trình Python và chạy tiến trình mới bằng cùng state/root. F5 giữ sessionId, list/read qua Agent mới xác nhận nội dung còn nguyên và quota usedFiles=4/reservedFiles=0.
+- Gửi lại requestId của mutation create đã được xác nhận trước restart: cùng fileId, không tạo trùng hoặc tăng quota. Đây là kiểm tra replay qua API, không chứng minh journal phục hồi khi crash giữa thao tác.
+- Đối chiếu ổ đĩa: Documents/renamed.txt và copy.txt có đúng UTF-8; Desktop/import.csv khớp byte; idempotent.txt chỉ có một bản. Không có JS pageerror. Đã xem ảnh kết quả cuối.
+- Harness local: `docs/profile-live/run-extended.py`, `extended.cjs`; chạy bằng `.test-venv/Scripts/python.exe docs/profile-live/run-extended.py` khi LocalDB chạy, cổng 5189/5190 trống, API đã build và Edge/Playwright có sẵn. Harness đọc named pipe từ log LocalDB; không lưu pipe cứng.
+- Log: `docs/profile-live/extended-latest.log`; artifact của lượt đạt: `docs/profile-live/run-fb5fbf44238e4b2d9a188c9cf6f83100/`, gồm browser.log, agent-before.log, agent-after.log, extended-live.png. Toàn bộ docs là local bị Git bỏ qua, cần chuẩn hóa nếu muốn chia sẻ bộ chạy.
+- Lần đầu bộ đo dừng ở selector Documents do icon ảnh hưởng accessible name; sửa selector trong test, chạy lại toàn bộ 9 ca đạt. Không phát hiện lỗi ứng dụng cần sửa trong đợt này.
+- Đã dừng tiến trình thử và xóa đúng database GUID tạo cho lượt chạy. Không chạm dữ liệu ITManagement; app chính vẫn giữ riêng ở 5173/5038.
+- Chưa kiểm tra Office/PDF binary import, mất mạng giữa mutation, crash khi đang ghi, restart API, Real-mode inventory hoặc nhiều thiết bị vật lý. Không gộp các mục đó vào kết luận đạt.
+
+### 15/11/2026 — mốc giữa phiên: đóng gói kiểm thử, mở rộng và sửa lỗi
+
+- Đang đóng gói harness vào `agent/profile_e2e.py`, `frontend/admin/tests/live/` thay vì chỉ giữ trong docs; tự tạo/xóa DB GUID, build API ở artifacts riêng, dùng process thật, tạo summary.json và log không chứa credential. Artifact/state được gitignore.
+- Hai suite core/files bản đóng gói ban đầu đạt 17 kiểm tra. Bản mở rộng files đạt 12 kiểm tra gồm PDF/DOCX byte fidelity, mở iframe PDF/tải DOCX, API restart và khôi phục sang thư mục khác.
+- Phát hiện lỗi restore qua đường dẫn khác làm đổi fileId: 3 regression test fail trước sửa; sửa một dòng index theo destination trong `agent/local_profiles.py`. Agent suite sau sửa **37 PASS, 1 SKIP**.
+- Fault injection dùng helper riêng dưới agent/tests (không có hook production): kill Agent ngay sau intent journal trước khi ghi file. Phát hiện request list tiếp theo trả500 do unique index một operation chưa hoàn tất/profile.
+- Đã thêm regression backend cho list sau Unknown: chứng kiến fail500 trước sửa. Đang kiểm tra guard dưới profile lock trả409 OPERATION_IN_PROGRESS, vẫn giữ reservation. Không xóa index hoặc thay schema/database nghiệp vụ.
+- Kiểm thử này cũng xác nhận còn thiếu quy trình đối soát Unknown: restart Agent không tự giải quyết thao tác đã lấy khỏi queue. Đã hỏi người dùng về Admin-triggered reconciliation; chưa triển khai phần phụ thuộc quyết định đó.
+- Review độc lập yêu cầu dọn cây process và che secret trong lỗi test; đã thêm private Windows Job Object và redaction, đang kiểm tra lại.
+- Trạng thái CHƯA kết luận cuối: backend ProfileOperationTests và recovery E2E bản sửa đang chạy. Tiếp theo đọc log `docs/profile-live/backend-green.log`, `recovery-fixed.log`; hoàn thiện hướng dẫn demo, kiểm tra cleanup và review.
+
+### 16/11/2026 — mốc giữa phiên: luồng Admin đối soát đã có, đang nghiệm thu cuối
+
+- Người dùng đã chọn và tiếp tục xác nhận: thêm Admin yêu cầu Agent đối soát, có nhật ký, không tự xóa file.
+- Thiết kế tại `docs/superpowers/plans/2026-11-15-admin-reconciliation.md`. Tái dùng CommandJson chỉ lưu metadata có version/attemptId/actorId/time; không thêm migration, không lưu nội dung tài liệu. Original operation giữ trạng thái Reconciled sau thành công, retry request gốc trả409 OPERATION_RECONCILED thay vì tự thực hiện lại.
+- Đã thêm API Admin POST `/profiles/{id}/reconcile`, GET history; quyền Employee bị chặn; kết quả Agent có attemptId để loại response cũ. Quota chỉ được giải phóng khi Agent quét đủ vùng lưu trữ hợp lệ. Lỗi/timeout giữ reservation để Admin thử lại.
+- QuotasPage có số giữ chỗ, trạng thái, nút Đối soát (xác nhận), Nhật ký. Agent scan chỉ metadata và kiểm tra binding, không đọc body/xóa file. Vùng lưu trữ thiếu hoặc không đọc được từ chối thành công.
+- Backend6 ca trước review PASS. Review bắt thêm: failed reconciliation không được mở lại mutation gốc; os.walk không được bỏ qua PermissionError. Đã tạo regression fail chứng minh cả hai rồi sửa fence theo metadata và onerror của scan.
+- Agent hiện **46 PASS, 1 SKIP**, gồm regression restore, reconcile, partial scan, guard database/cổng, Windows Job Object kill descendant. Full backend/frontend/build đang chạy; chưa kết luận hoàn tất tính năng.
+- Live UI đã đi qua Admin reconcile thành công và giữ file/quota; test dừng ở selector text nhật ký trùng với Popconfirm. Đã sửa scope selector vào dialog, cần chạy lại để kết luận.
+- Cần đọc `docs/profile-live/backend-final.log`, `frontend-tests.log`, `frontend-build.log`; chạy lại `agent/profile_e2e.py --suite all`, review lần cuối và cập nhật docs. Main API 5038 vẫn là binary cũ, cần restart bằng bản mới sau kiểm thử; không migrate/seed DB hiện có.
+
+
+### 16/11/2026 — hoàn tất mốc Admin đối soát và bộ kiểm thử tái lập
+
+- Hoàn thành phần người dùng đã chốt: Admin yêu cầu Agent đối soát, có nhật ký, không tự xóa file/không đọc body tài liệu. UI ở `/admin/quotas`, hiện pending/giữ chỗ, nút Đối soát và Nhật ký20 sự kiện mới nhất.
+- Giữ một operation chưa hoàn tất/profile. CommandJson chỉ lưu metadata attempt có version, ID người yêu cầu và timestamp. Không thêm migration/schema; không migrate/seed ITManagement. API và Agent cần chạy cùng phiên bản mới.
+- Kết quả hiện tại: **84 backend PASS; 46 Agent PASS,1 SKIP (symlink privilege); 29 frontend PASS; build frontend/API PASS; 26 live checks PASS**. Có lượt visual bổ sung recovery6/6, desktop/modal hiển thị rõ, viewport390 không tràn ngang document.
+- Live suite cuối: `core-db3b4af532b9478cb732c70a9351ba36`(8), `files-2ba5f1c322c740d980c85849f7117be3`(12), `recovery-841175376b094a008b1c6904214cd791`(6), dưới artifacts/profile-e2e. Cả3 summary passed=true/cleanup=true. Visual mới nhất: `recovery-ef0420b1f8e0436784986ff66e16313c/reconciliation-admin.png` và `reconciliation-mobile.png` (đã xem).
+- Đã tái hiện và sửa: restore sang folder/name khác đổi fileId; list khi Unknown trả500 duplicate index; đối soát thất bại phải tiếp tục chặn kết quả/mutation gốc; PermissionError trong scan không được coi là inventory đầy đủ.
+- Đối soát thành công cập nhật metadata/count và giải phóng reservation, đánh dấu Reconciled. Request gốc trả409 OPERATION_RECONCILED; request mới sau khi người dùng xem danh sách có thể thực hiện. Lỗi/timeout vẫn giữ reservation. Attempt cũ hoặc normal result đến muộn không được ghi đè kết quả hiện tại.
+- Review độc lập phát hiện lỗi và đã được sửa/kiểm tra lại; review cuối không còn finding cần sửa. Runner dùng private Windows Job Object, có test child cleanup, từ chối DB ngoài prefixGUID/cổng ứng dụng; test log che password/token/session.
+- Source mới: `agent/profile_e2e.py`, `agent/tests/profile_fault_worker.py`, `agent/tests/test_profile_e2e.py`, `frontend/admin/tests/live/`(+README), `live-support.test.mjs`, `ProfileReconciliationService.cs`. Source sửa: Agent engine/transport/tests, API service/contracts/controllers/tests, QuotasPage. Tài liệu: RUNNING.md, agent/README.md, file tiến độ và .gitignore artifact.
+- Đã restart đúng process API của project cổng 5038, build0 lỗi, đặt InitializeOnStartup=false. Đã kiểm tra API routes mới, UI `/admin/quotas?demo=0` và API machines qua proxy trả200. Frontend5173 vẫn chạy. Không tự enroll Agent hoặc tạo nhân viên/tài sản trong DB nghiệp vụ.
+- Chạy lại: chuẩn bị Edge/Playwright/sqlcmd/LocalDB, dùng `.test-venv/Scripts/python.exe agent/profile_e2e.py --suite all`; tùy chọn core/files/recovery. Không chạy `.cjs` trực tiếp với credential nghiệp vụ. Xem README trong tests/live cho cách cài module và đọc artifact.
+- Giới hạn: một máy vật lý/mode simulated; đã kiểm tra crash sau intent trước write, không tuyên bố mọi thời điểm crash đều được nghiệm thu. Không có Real inventory/Office desktop editor/full PDF visual fidelity. Agent gốc không sẵn sàng/mất index/root thì giữ lỗi, không tự tạo dữ liệu thay thế.
+- Chưa xử lý: cảnh báo NuGet AutoMapper16.2.0; chunkJS >500kB; audit tổng hợp/ticket/hợp nhất storage cần chốt phạm vi. Không commit/push.
+- Dừng tại mốc đã nghiệm thu để không mở dở bước lớn tiếp theo. Phiên sau đọc mục Điểm tiếp tục, kiểm tra git status và giữ toàn bộ thay đổi hiện có.
+
+## Mốc 16/11/2026 — Hai cổng đăng nhập riêng
+
+- Người dùng chốt `/admin`, nền navy #1B2A4A, thẻ trắng ở giữa. Giữ logo STU và bảng màu hiện có.
+- URL gốc khi chưa có phiên tự vào `/employee`; nhân viên giữ bố cục riêng. Bỏ link Quản trị trên `/machines`, không thêm link Admin công khai.
+- Form dùng chung xử lý lỗi/đang gửi; từ chối tài khoản sai cổng và xóa token vừa nhận. Employee/Technician dùng cổng nhân viên. API vẫn kiểm tra quyền ở backend.
+- Giữ khôi phục phiên hiện hữu và deep link Admin hợp lệ; không sửa schema, dữ liệu hay backend.
+- File: LoginPage.tsx, MachinesPage.tsx, routing.ts, styles.css, index.html, routing.test.mjs, tests/login-portals.cjs; RUNNING.md và .gitignore.
+- Kiểm thử: 30/30 frontend; 9/9 UI Edge dùng API giả lập (mặc định, sai cổng hai chiều, nhân viên đăng nhập/đăng xuất, Admin deep link, màu nền/thẻ, mobile390, không link Admin). Đã xem ảnh desktop/mobile tại artifacts/login-portals. Build PASS; cảnh báo chunk >500kB còn như trước.
+- UI smoke không thay thế kiểm thử xác thực SQL thật; backend không đổi, không chạy lại bộ SQL/Agent ở mốc này.
+- Chạy UI smoke từ gốc repo: đặt PLAYWRIGHT_MODULE trỏ module Playwright, chạy `node frontend/admin/tests/login-portals.cjs`; UI_BASE_URL mặc định http://127.0.0.1:5173.
+## Mốc 16/11/2026 — Dọn dependency AutoMapper
+
+- Rà toàn bộ backend: AutoMapper chỉ có PackageReference và AddAutoMapper; không có IMapper, CreateMap, ProjectTo hoặc mapping profile nghiệp vụ.
+- Bỏ package16.2.0 và đăng ký DI không dùng, không thay đổi schema/API contract/logic nghiệp vụ.
+- Nguồn cảnh báo đã kiểm tra: https://github.com/advisories/GHSA-6vhm-j9h7-f9gh và https://github.com/advisories/GHSA-gpwp-5797-mjff. Không suy ra ứng dụng đã bị khai thác.
+- `dotnet build backend/ITManagement.slnx --artifacts-path artifacts/backend-acceptance --no-restore`: PASS,0warning/0error.
+- `dotnet list backend/ITManagement.slnx package --vulnerable --include-transitive`: cả5 project không phát hiện package có lỗ hổng theo nguồn NuGet hiện tại.
+- Test FoundationTests và SqlServerModelTests:3/3PASS. Log trong docs/profile-live/{build-dependency,audit-dependency,test-dependency-offline}.log.
+- Chặn kiểm thử SQL: sqlcmd không kết nối được pipe LocalDB đang ghi trong error.log; không thấy tiến trình sqlservr. Đã hỏi người dùng mở SSMS; không tự khởi động/cấu hình SQL.
+- Chưa chạy lại84 test SQL sau thay đổi; số84 ở mốc trước là kết quả lịch sử. Chưa rebuild/restart API chính để tránh thay bản đang chạy khi kiểm thử tích hợp còn chờ.
+- Tiếp tục: khi SSMS đã kết nối, đọc pipe mới trong error.log, đặt TEST_SQLSERVER, chạy dotnet test với artifacts/backend-acceptance; nếu đạt thì cập nhật API đang chạy, kiểm tra endpoint và ghi kết quả.
+### Nghiệm thu tiếp sau khi người dùng mở SSMS — 16/11/2026
+
+- Kết nối được LocalDB qua pipe mới; đọc error.log bằng FileShare.ReadWrite vì SQL đang giữ file. Không đổi cấu hình hay khởi động lại SQL.
+- `dotnet test backend/ITManagement.slnx --artifacts-path artifacts/backend-acceptance --no-restore`:84/84PASS,0skip, thời gian test1m27s. Dùng TEST_SQLSERVER và database GUID riêng. Log: docs/profile-live/test-dependency-sql.log.
+- API build bản chạy chính:0warning/0error; dependency runtime không còn AutoMapper. Log: docs/profile-live/build-api-dependency.log.
+- Đã chạy API5038 và Vite5173 ẩn; Database__InitializeOnStartup=false, không migrate/seed DB nghiệp vụ. API dùng pipe hiện tại cho phiên chạy này; pipe thay đổi nếu LocalDB khởi động lại.
+- Kiểm tra HTTP200: Swagger, /api/machines qua Vite, /employee, /admin. Log API: artifacts/api-dependency-20261116.{out,err}.log.
+- Phần chờ SQL ở mốc trước đã giải quyết. Chưa triển khai trang nhật ký/metadata Admin tổng hợp vì còn cần chốt phạm vi.

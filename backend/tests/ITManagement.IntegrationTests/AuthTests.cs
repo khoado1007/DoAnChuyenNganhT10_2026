@@ -15,8 +15,10 @@ using Xunit;
 namespace ITManagement.IntegrationTests;
 
 // Uses an isolated database; never connects to the application's development database.
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
+    // Original suites exercise the retained Agent protocol; web simulation has its own fixture.
+    protected virtual bool UseAgent => true;
     public string StorageRoot { get; } = Path.Combine(Path.GetTempPath(), "itam-storage-test-" + Guid.NewGuid().ToString("N"));
     private readonly string connection = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(
         Environment.GetEnvironmentVariable("TEST_SQLSERVER")
@@ -32,6 +34,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             {
                 ["SeedAdmin:Password"] = "Admin@12345",
                 ["Database:InitializeOnStartup"] = "true",
+                ["Simulation:UseAgent"] = UseAgent.ToString(),
+                ["Simulation:StorageRoot"] = Path.Combine(StorageRoot, "simulation"),
                 ["ConnectionStrings:DefaultConnection"] = connection
             }));
         builder.ConfigureServices(services =>

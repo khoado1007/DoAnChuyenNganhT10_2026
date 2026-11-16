@@ -19,6 +19,21 @@ function client(fetcher) {
   };
 }
 
+test('demo active employees use any active computer and see session-bound simulated specifications', async () => {
+  const fetcher = createDemoFetch(), employee = client(fetcher), admin = client(fetcher);
+  await employee.login('khoa'); await admin.login('admin');
+  const result = await employee.call('/machines/pc-003/sessions', {});
+  assert.equal(result.status, 200);
+  const specification = { operatingSystem: 'Test OS', software: [{ name: 'Editor', version: '1', filePath: 'C:\\Demo\\editor.exe' }] };
+  assert.equal((await admin.call('/assets/pc-003/specification', specification, 'PUT')).status, 200);
+  assert.equal((await employee.call('/machines/pc-003/information', null, 'GET', 'wrong')).status, 403);
+  const info = await employee.call('/machines/pc-003/information', null, 'GET', result.data.sessionId);
+  assert.equal(info.data.operatingSystem, 'Test OS');
+  assert.equal(info.data.status, 'simulated');
+  assert.equal(info.data.software[0].name, 'Editor');
+  assert.equal((await employee.call('/assets/pc-003/specification', specification, 'PUT')).status, 403);
+});
+
 test('demo supports per-user/per-machine isolation, quota, persistence across sign out, and revocation', async () => {
   const fetcher = createDemoFetch();
   const khoa = client(fetcher), an = client(fetcher), admin = client(fetcher);
