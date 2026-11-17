@@ -11,6 +11,10 @@ namespace ITManagement.Infrastructure.Services;
 public sealed class MachineInformationService(AppDbContext db, IProfileOperationService profiles, TimeProvider clock)
     : IMachineInformationService
 {
+    // SQL datetime2 does not retain Kind. Values in these columns are UTC, including values read back after save.
+    private static DateTime Utc(DateTime value) => value.Kind == DateTimeKind.Local
+        ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+    private static DateTime? Utc(DateTime? value) => value is DateTime date ? Utc(date) : null;
     public async Task<MachineInformationResponse> GetForSessionAsync(Guid assetId, Guid sessionId, CancellationToken ct)
     {
         // Reuse the same current-user, active account, machine and session checks as the file workspace.
@@ -24,9 +28,9 @@ public sealed class MachineInformationService(AppDbContext db, IProfileOperation
             ?? throw new NotFoundException("Asset", assetId);
         var spec = await db.MachineSpecifications.AsNoTracking().SingleOrDefaultAsync(x => x.AssetId == assetId, ct);
         return new MachineInformationResponse(asset.Id, asset.AssetCode, asset.Name, "simulated",
-            asset.SerialNumber, asset.Manufacturer, asset.Model, asset.CreatedAt, spec?.UpdatedAt ?? asset.UpdatedAt,
+            asset.SerialNumber, asset.Manufacturer, asset.Model, Utc(asset.CreatedAt), Utc(spec?.UpdatedAt ?? asset.UpdatedAt),
             spec?.OperatingSystem, spec?.Processor, spec?.MemoryGb, spec?.DiskTotalGb, spec?.DiskFreeGb,
-            spec?.DiskEncryption, spec?.CollectorVersion, spec?.PrivateIp, spec?.PublicIp, spec?.LastRestartedAt,
+            spec?.DiskEncryption, spec?.CollectorVersion, spec?.PrivateIp, spec?.PublicIp, Utc(spec?.LastRestartedAt),
             spec is null ? [] : JsonSerializer.Deserialize<MachineSoftwareDto[]>(spec.SoftwareJson) ?? []);
     }
 
@@ -48,8 +52,8 @@ public sealed class MachineInformationService(AppDbContext db, IProfileOperation
         spec.CollectorVersion = request.CollectorVersion;
         spec.PrivateIp = request.PrivateIp;
         spec.PublicIp = request.PublicIp;
-        spec.LastRestartedAt = request.LastRestartedAt;
-        spec.SoftwareJson = JsonSerializer.Serialize(request.Software);
+        spec.LastRestartedAt = Utc(request.LastRestartedAt);
+        spec.SoftwareJson = JsonSerializer.Serialize(request.Software.Select(item => item with { LastUsedAt = Utc(item.LastUsedAt) }));
         spec.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
         return await GetAsync(assetId, ct);

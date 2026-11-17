@@ -35,6 +35,10 @@ agent/state/
 /.test-venv/
 /artifacts/profile-e2e/
 /artifacts/login-portals/
+/artifacts/server-simulation-e2e/
+/artifacts/machine-workspace/
+/backend/src/ITManagement.API/storage/
+*.bak
 
 # Current Windows setup instructions
 !/RUNNING.md

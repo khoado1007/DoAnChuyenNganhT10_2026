@@ -45,6 +45,8 @@ public sealed class MachineInformationTests(ServerApiFactory factory) : IClassFi
         Assert.Equal(123.25m, info.GetProperty("diskFreeGb").GetDecimal());
         Assert.Equal("Editor", info.GetProperty("software")[0].GetProperty("name").GetString());
         Assert.Equal(JsonValueKind.String, info.GetProperty("updatedAt").ValueKind);
+        Assert.Equal("2026-11-15T10:00:00Z", info.GetProperty("lastRestartedAt").GetString());
+        Assert.EndsWith("Z", info.GetProperty("updatedAt").GetString());
         Assert.False(info.TryGetProperty("softwareJson", out _));
         Assert.False(info.TryGetProperty("userId", out _));
         Assert.False(info.TryGetProperty("credential", out _));

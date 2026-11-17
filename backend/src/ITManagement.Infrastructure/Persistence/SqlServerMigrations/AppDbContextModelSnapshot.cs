@@ -458,7 +458,7 @@ namespace ITManagement.Infrastructure.Persistence.SqlServerMigrations
 
                     b.HasIndex("AssetId");
 
-                    b.HasIndex("UserId", "AssetId")
+                    b.HasIndex("UserId", "AssetId", "StorageBackend")
                         .IsUnique();
 
                     b.ToTable("local_profiles", null, t =>

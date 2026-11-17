@@ -1,8 +1,8 @@
 # Tiến độ và bàn giao đồ án IT Management
 
-**Cập nhật gần nhất:** 16/11/2026 — giờ Việt Nam.
+**Cập nhật gần nhất:** 17/11/2026 — giờ Việt Nam.
 **Workspace đúng:** `D:\DoAnChuyenNganhT10_2026` (đường dẫn cũ `D:\DoAnChuyenNganh` không tồn tại).
-**Điểm tiếp tục:** Đã hoàn tất gỡ AutoMapper không dùng: backend84/84PASS trên SQL riêng sau thay đổi, build0 lỗi/0 cảnh báo, audit5 project không phát hiện package có lỗ hổng. API mới5038 và frontend5173 đã chạy, Swagger/API machines qua proxy/hai trang login trả200; runtime không còn AutoMapper. Hai cổng đăng nhập đã xong (frontend30, UI giả lập9 ở mốc trước). Bước tiếp theo: chốt phạm vi nhật ký/metadata Admin tổng hợp với người dùng; không làm lại đối soát đã nghiệm thu.
+**Điểm tiếp tục:** ĐÃ hoàn tất luồng mô phỏng web không Agent: Employee active dùng mọi máy active, chọn máy trước login, thông tin/phần mềm chỉ đọc và file riêng người–máy trên server. Backend96/96, frontend32/32, E2E SQL/API/Edge không Agent9/9, buildPASS. Đã backup/verify và áp dụng ServerSimulation + SeparateServerAndAgentProfiles; API5038/UI5173 đang chạy. 5 tài sản,4profile Agent,1file cũ giữ nguyên; server tạo profile riêng nên không chặn login. User chọn chuyển file cũ SAU. Đã dọn hướng dẫn legacy và chốt kế hoạch mục5–6. Bước tiếp: Nhật ký Admin chỉ đọc trước, metadata sau; không tự chuyển/xóa dữ liệu Agent cũ.
 
 ## 1. Cách dùng file này
 
@@ -92,29 +92,25 @@ Database test dùng tiền tố `itmanagement_test_` hoặc `itam_dashboard_test
 
 ## 5. Các phần còn thiếu / chưa xử lý
 
-| Ưu tiên | Phần việc | Bằng chứng hiện tại |
+| Ưu tiên | Phần việc | Trạng thái |
 | --- | --- | --- |
-| Đã đạt | Luồng nhân viên và lối vào chọn máy | Portal → chọn máy → đăng nhập Domain → Desktop đã qua E2E thật ngày 15/11; giữ một SPA |
-| Đã đạt | Khôi phục phiên với API/Agent thật | F5 giữ sessionId, đọc lại nội dung đã lưu; thu hồi quyền rồi F5 không lộ profile. Python worker thật, mode simulated |
-| 2 | Nhật ký tổng hợp và metadata file cho Admin | Đã có nhật ký đối soát20 sự kiện/profile và quota/pending; chưa có màn hình audit tổng hợp, cần chốt phạm vi |
-| 3 | Ticket cơ bản | Có model/repository, UI đang thông báo chưa triển khai; chưa có luồng gửi và xử lý hoàn chỉnh |
-| 3 | Thống nhất phần storage cũ và mới | API quota byte/lưu file server còn song song với profile Agent/quota số file; cần trao đổi trước khi loại bỏ hoặc thay đổi |
-| Đã đạt | Bộ chạy tái lập và đối soát | Live26/26 gồm PDF/DOCX, restartAPI/Agent, crash trước write rồi Admin đối soát; xem giới hạn trong nhật ký16/11 |
-| 2 | Kiểm tra dependency | Restore báo NU1903 với AutoMapper16.2.0; cần xác minh ảnh hưởng/phiên bản vá, chưa tự thay package |
-| 3 | Real inventory / nhiều thiết bị | Chưa nghiệm thu hai máy vật lý; không tự thu thập inventory nếu chưa được người dùng cho phép |
+| Tiếp theo | Nhật ký tổng hợp và metadata file cho Admin | User đã đồng ý phạm vi chỉ đọc: lọc theo thời gian/người/thao tác, xem tên/dung lượng/chủ sở hữu/máy; không đọc nội dung file |
+| Sau nhật ký | Ticket cơ bản | Chưa có luồng hoàn chỉnh; cần chốt trạng thái và cách phân công trước khi triển khai |
+| Chờ user | Chuyển file Agent cũ | User chọn giữ nguyên, chuyển sau; cần đúng thư mục nguồn, không tự dò/copy/xóa dữ liệu |
+| Đã dọn tài liệu | Storage/Agent legacy | Hướng dẫn cũ ở legacy/README.md; API và dữ liệu giữ nguyên, chưa gộp hoặc loại bỏ |
+| Ngoài phạm vi hiện tại | Inventory thật / nhiều máy vật lý | Mô phỏng web không cần phần này; chỉ mở lại khi user yêu cầu |
 
-Một số skill tham chiếu các tài liệu chưa tìm thấy (`STORAGE_POLICY.md`, `DEMO_ACCEPTANCE.md`, v.v.). Không giả định nội dung các file này hoặc xem skill là bằng chứng chức năng đã hoàn thành.
+Luồng mô phỏng server đã đạt: backend96/96, frontend32/32, E2E không Agent9/9 tại mốc17/11. Các kết quả Agent cũ chỉ là lịch sử.
 
-## 6. Bước tiếp theo cụ thể
+## 6. Kế hoạch tiếp theo — làm từng mốc nhỏ
 
-1. Đã đọc trạng thái Git và file này; giữ nguyên thay đổi SQL Server, Agent ACL, portal và F5 hiện có.
-2. **Đã cá nhân hóa frontend** theo mục 6.1 bằng cách cập nhật SPA hiện tại, không viết lại ứng dụng.
-3. Đã xem logo trong `img/`; giữ tên IT Desk, dùng ảnh STU có sẵn và không tự thêm thông tin tác giả/trường chưa cung cấp.
-4. Đã áp dụng theme trắng-xanh, logo trên trang đăng nhập/layout/portal/mô phỏng máy và favicon. Không đổi luồng nghiệp vụ hay phân quyền.
-5. Đã chạy frontend tests/build và kiểm tra giao diện bằng trình duyệt demo; chi tiết và giới hạn được ghi tại mục 7.
-6. Đã hoàn thành bộ chạy `agent/profile_e2e.py --suite all`, hướng dẫn demo và Admin đối soát có nhật ký ngày 16/11. Không cần làm lại; chỉ chạy lại suite liên quan khi thay đổi.
-7. Bước độc lập tiếp theo: kiểm tra cảnh báo AutoMapper bằng nguồn chính thức và các chỗ sử dụng hiện có, xác định thay đổi tối thiểu rồi chạy test liên quan.
-8. Nhật ký/metadata Admin tổng hợp, ticket và hợp nhất storage cũ/mới vẫn cần trao đổi phạm vi; không tự loại bỏ API/dữ liệu cũ hoặc cấp quyền đọc file cá nhân cho Admin.
+1. **Nhật ký Admin trước:** API chỉ đọc có phân trang và lọc ngày/người/thao tác; lấy sự kiện đã có, thêm menu Nhật ký. Test401/403, bộ lọc, thứ tự và phân trang. Không trả token/nội dung file.
+2. **Metadata file sau:** bảng tên file, thư mục, dung lượng, tài khoản, máy và loại kho Server/Agent. Tách rõ dữ liệu cũ/mới, không có nút mở/tải file cá nhân cho Admin. Test ranh giới quyền và dữ liệu trống.
+3. **Nghiệm thu mỗi mốc:** test phần liên quan + build + kiểm tra browser, cập nhật file tiến độ rồi mới mở bước kế tiếp. Không làm cả Ticket khi gần hết giới hạn.
+4. **Ticket:** sau hai mốc trên, trao đổi nghiệp vụ gửi/nhận/phân công/đóng yêu cầu rồi triển khai.
+5. **File cũ:** chỉ chuyển khi người dùng cung cấp nguồn và yêu cầu; giữ nguyên bản gốc và backup.
+
+Dọn cache17/11 chưa thực hiện: lệnh xóa17 file cache (~179KiB) bị bộ kiểm soát tự động chặn theo chính sách. Không thử cách khác để vượt chặn. Không ảnh hưởng ứng dụng.
 
 ### 6.1. Yêu cầu cá nhân hóa frontend — chốt ngày 12/11/2026
 
@@ -343,3 +339,42 @@ Một số skill tham chiếu các tài liệu chưa tìm thấy (`STORAGE_POLIC
 - Đã chạy API5038 và Vite5173 ẩn; Database__InitializeOnStartup=false, không migrate/seed DB nghiệp vụ. API dùng pipe hiện tại cho phiên chạy này; pipe thay đổi nếu LocalDB khởi động lại.
 - Kiểm tra HTTP200: Swagger, /api/machines qua Vite, /employee, /admin. Log API: artifacts/api-dependency-20261116.{out,err}.log.
 - Phần chờ SQL ở mốc trước đã giải quyết. Chưa triển khai trang nhật ký/metadata Admin tổng hợp vì còn cần chốt phạm vi.
+## 17/11/2026 — Tiếp tục chuyển mô phỏng web (đang thực hiện)
+
+- User đã chốt: chọn máy trước login; mọi Employee active dùng mọi máy active; giữ thao tác file, lưu trên server. Không yêu cầu Agent/enrollment/grant cho luồng này.
+- Code hiện có: Simulation:UseAgent=false mặc định; legacy Agent giữ với cấu hình true. ServerProfileOperations khóa SQL và ghi blob bất biến, metadata+quota+idempotency trong transaction. ServerProfileStorage chỉ dùng GUID làm đường dẫn.
+- Migration additive 20261116145149_ServerSimulation: StorageBackend default Agent để giữ profile cũ, StorageKey nullable và machine_specifications. Snapshot SQL đã cập nhật đúng; EF tooling từng ghi nhầm snapshot vào thư mục migrations cũ và đã khôi phục.
+- Profile Agent có dữ liệu không bị tự đổi hoặc xóa; cần chuyển riêng nếu gặp. UI có thông tin/phần mềm/file, Admin có cấu hình mô phỏng; Agent ẩn khỏi menu chính.
+- docs/profile-live/server-full.log:96/96 backendPASS. Đang bổ sung regression UTC sau reviewer phát hiện LastRestartedAt SQL datetime2 mất timezone; chưa kết luận bản cuối.
+- Còn làm: sửa UTC, test liên quan; E2E thật không Agent + restartAPI; kiểm tra dữ liệu hiện có, backup DB rồi migrate additive nếu an toàn; build/chạy app và cập nhật hướng dẫn.
+## 17/11/2026 — HOÀN TẤT mô phỏng web không Agent
+
+### Quyết định mới thay thế các mô tả Agent/grant cũ
+- Mặc định chọn máy trước login. Employee active dùng mọi máy Desktop/Laptop/Server Available hoặc Assigned; không cần grant riêng/token/enrollment.
+- Employee xem readonly tổng quan/chi tiết/phần mềm theo ảnh; giữ file Desktop/Documents/RecycleBin. Admin nhập cấu hình/phần mềm ở Tài sản → Cấu hình mô phỏng. Giá trị chưa có hiển thị Chưa khai báo.
+- Nội dung file nằm trên server, metadata/quota/idempotency ở SQL; server không tự thu thập inventory. Python chỉ còn là phần mở rộng legacy và công cụ chạy test, không cần chạy Agent cho luồng mới.
+- User chọn GIỮ file Agent cũ, chuyển sau. Mỗi người–máy có profile Server riêng và Agent riêng; index mới không cho trùng cùng backend. File cũ không tự xuất hiện ở vùng server. Khi chuyển mode, phiên thuộc backend cũ không giữ chỗ máy ở luồng mới.
+
+### Đã triển khai và kiểm tra
+- ServerProfileOperations/Storage: khóa asset→user→profile, quota atomic, idempotency, blob bất biến có flush trước SQL commit, GUID paths ngoài webroot, không dùng tên user nhập làm đường dẫn; giữ orphan/phiên bản cũ, chưa có auto garbage collection.
+- Chặn sai user/máy/phiên, tài khoản khóa/máy disabled, traversal/đuôi file cấm, quota vượt, metadata sai/mất nội dung. File tối đa8MiB; copy giữ blob bất biến, write tạo blob mới. Quota file không phải quota byte của ổ đĩa mô phỏng.
+- Sửa UTC LastRestartedAt/UpdatedAt từ SQL datetime2 và normalize ngày khi lưu; regression assert Z. UI nền trắng giúp cả ba tab hiển thị đủ tương phản; responsive390px đã xem ảnh.
+- Backend96/96PASS sau thay đổi cuối: docs/profile-live/server-final.log. 17 regression liên quan cũng đạt trước full run (server-profile-green.log).
+- Frontend32/32PASS; buildPASS (còn warning chunk >500kB). Browser mock thông tin/Admin editor/legacy quota đạt: docs/profile-live/server-ui-smoke.log.
+- E2E không Agent9/9PASS, cleanup=true: artifacts/server-simulation-e2e/ad7dbb4294154d76828a4ef5b1462c4f. Chọn máy/login, readonly info/software, tạo/sửa TXT, PDF/DOCX upload + tảiDOCX đúng byte, F5, restartAPI, đổi máy cách ly file, mobile/logout, kiểm tra blob thật. Database GUID riêng đã xóa đúng guard, test ports5189/5190 đã dừng.
+- Runner mới: backend/tests/server_simulation_e2e.py và frontend/admin/tests/live/server-simulation.cjs. Chỉ chạy suite hiện hành này để nghiệm thu web mới; bộ profile_e2e Agent26 ca cũ là bằng chứng lịch sử, không phải nghiệm thu UI mới.
+
+### Dữ liệu và bản đang chạy
+- Backup COPY_ONLY/CHECKSUM + RESTORE VERIFYONLY hợp lệ trước mỗi migration. Bản trước thay đổi: artifacts/backups/ITManagement-before-server-simulation-620bfca8d16949cda8f9edefe081806c.bak; bản trước tách profile: artifacts/backups/ITManagement-before-separate-profiles-fd9e3d86265643b39afa036cb8efd416.bak.
+- Đã áp dụng20261116145149_ServerSimulation (cột/bảng additive) và20261117052223_SeparateServerAndAgentProfiles (đổi index unique sang UserId/AssetId/StorageBackend). Không seed/reset password. Sau migration vẫn5assets,4Agentprofiles,1file cũ.
+- API chính build0warning/0error, chạy5038; Vite5173. Simulation__UseAgent=false, Database__InitializeOnStartup=false; root cố định D:\DoAnChuyenNganhT10_2026\backend\src\ITManagement.API\storage\simulation. SQL dùng pipe hiện hành, cần cập nhật khi instance restart.
+- API machines qua proxy200, Swagger có information/specification. Logs artifacts/api-server-simulation.{out,err}.log. Không đổi/xóa SQL instance.
+- Đã cập nhật README/RUNNING, ignore kho file và backup/artifacts. Không commit/push trong lượt17/11; thay đổi16/11 đã nằm trong HEAD khi tiếp tục, giữ nguyên.
+- EF CLI hay ghi snapshot nhầm vào Persistence/Migrations (legacy excluded) do trùng tên file: sau generate đã chép snapshot mới về SqlServerMigrations và khôi phục nguyên file legacy. Model snapshot test đạt; tránh tạo migration trùng lặp.
+- Còn lại: nhật ký/metadata Admin tổng hợp, Ticket, chuyển file cũ theo yêu cầu sau; không coi toàn bộ đồ án đã hoàn tất chỉ vì luồng này đạt.
+### 17/11/2026 — Dọn tài liệu và bàn giao khi gần giới hạn
+- Tách lịch sử nghiệm thu/hướng dẫn Agent khỏi RUNNING.md sang legacy/README.md; đánh dấu Agent tùy chọn/legacy ngay đầu agent/README.md.
+- Hướng dẫn hiện tại làm rõ runtime chỉ cần .NET/Node/SQL; Python cho test/legacy, demo trình duyệt không chứng minh file lưu thật.
+- Cập nhật mục5–6 thành backlog và kế hoạch theo mốc nhỏ. Nhật ký/metadata đã được user đồng ý, không hỏi lại phạm vi này.
+- Chỉ sửa tài liệu. Không đổi API, schema, file người dùng, backup hoặc tiến trình đang chạy. Không chạy lại96 test vì không đổi code.
+- Cache17 file tổng183172bytes còn nguyên: automatic approval review từ chối lệnh Remove-Item với thông báo blocked by policy; không được cung cấp lý do chi tiết hơn.

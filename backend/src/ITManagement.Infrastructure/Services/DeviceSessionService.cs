@@ -92,10 +92,12 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
             || (!UseAgent && asset.Type is not (AssetType.Desktop or AssetType.Laptop or AssetType.Server))
             || (UseAgent && !await db.DeviceAccessGrants.AnyAsync(x => x.AssetId == assetId && x.UserId == userId && x.RevokedAt == null, ct))) throw Forbidden();
         var existing = await db.DeviceSessions.SingleOrDefaultAsync(x => x.AssetId == assetId && x.EndedAt == null, ct);
+        var backend = UseAgent ? "Agent" : "Server";
         if (existing is not null)
         {
             var owner = await db.AppUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == existing.UserId, ct);
             if (existing.ExpiresAt > Now && owner is { Status: UserStatus.Active, Role: UserRole.Employee }
+                && await db.LocalProfiles.AnyAsync(p => p.Id == existing.ProfileId && p.StorageBackend == backend, ct)
                 && owner.SecurityVersion == existing.SecurityVersion
                 && (!UseAgent || await db.DeviceAccessGrants.AnyAsync(x => x.AssetId == assetId && x.UserId == existing.UserId && x.RevokedAt == null, ct)))
                 throw new SimulationException(409, "DEVICE_SESSION_CONFLICT", "Máy đang có phiên mô phỏng hoạt động.");
@@ -103,22 +105,12 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
             // Giải phóng partial unique index trước INSERT phiên mới.
             await db.SaveChangesAsync(ct);
         }
-        var profile = await db.LocalProfiles.SingleOrDefaultAsync(x => x.AssetId == assetId && x.UserId == userId, ct);
+        var profile = await db.LocalProfiles.SingleOrDefaultAsync(x => x.AssetId == assetId && x.UserId == userId && x.StorageBackend == backend, ct);
         if (profile is null)
         {
-            profile = new LocalProfile { AssetId = assetId, UserId = userId, CreatedAt = Now, StorageBackend = UseAgent ? "Agent" : "Server" };
+            profile = new LocalProfile { AssetId = assetId, UserId = userId, CreatedAt = Now, StorageBackend = backend };
             db.LocalProfiles.Add(profile);
         }
-        else if (!UseAgent && profile.StorageBackend != "Server")
-        {
-            // Existing Agent bytes are not on the server. Never silently discard their metadata.
-            if (profile.Ready || await db.ProfileFiles.AnyAsync(f => f.ProfileId == profile.Id, ct)
-                || await db.ProfileOperations.AnyAsync(o => o.ProfileId == profile.Id, ct))
-                throw new SimulationException(409, "LEGACY_PROFILE_REQUIRES_MIGRATION", "Máy này có dữ liệu Agent cũ. Cần chuyển dữ liệu trước khi mở vùng file trên server.");
-            profile.StorageBackend = "Server";
-        }
-        else if (UseAgent && profile.StorageBackend != "Agent")
-            throw new SimulationException(409, "PROFILE_BACKEND_MISMATCH", "Profile này lưu trên server, không thuộc luồng Agent.");
         var session = new DeviceSession { AssetId = assetId, UserId = userId, ProfileId = profile.Id,
             SecurityVersion = user.SecurityVersion, ExpiresAt = Now.AddHours(8) };
         db.DeviceSessions.Add(session);

@@ -7,6 +7,8 @@
 
 **Bàn giao tiến độ:** đọc [TIEN_DO_DO_AN.md](TIEN_DO_DO_AN.md) khi tiếp tục phiên mới; cập nhật sau mỗi phần việc lớn và trước khi dừng do giới hạn phiên.
 
+**Phạm vi chốt lại 17/11/2026 (ưu tiên hơn đặc tả cũ bên dưới):** mô phỏng hoàn toàn trên web. Employee active dùng mọi máy active, chọn máy trước đăng nhập, xem thông tin/phần mềm chỉ đọc và thao tác Desktop/Documents. File được API lưu riêng theo người–máy trên server, metadata/quota trong SQL Server. Không cần Python Agent/token hoặc cấp quyền riêng từng máy cho luồng chính. Admin khai báo cấu hình mô phỏng ở Tài sản; Agent và giao thức cũ được giữ riêng để bảo toàn dữ liệu lịch sử. Xem [RUNNING.md](RUNNING.md) để chạy luồng mới.
+
 ## Cách chạy hiện tại — 11/11/2026
 
 Dùng **SQL Server Express LocalDB** tại `(localdb)\MSSQLLocalDB`, Windows Authentication; **không dùng Docker**. Xem [RUNNING.md](RUNNING.md) để chạy API, web, Agent và bộ kiểm thử. LocalDB tự khởi động khi kết nối; không cần mở SSMS trước khi chạy API.

@@ -1,3 +1,9 @@
+# Luồng hiện hành — mô phỏng server (17/11/2026)
+
+Chạy `backend/tests/server_simulation_e2e.py` từ gốc repo sau khi build với `--artifacts-path artifacts/server-simulation`. Runner dùng SQL GUID riêng, API5189/Vite5190/Edge, không đăng ký hoặc chạy Agent; kiểm tra file trên server và restart API, tự cleanup database. Xem [RUNNING.md](../../../../RUNNING.md).
+
+Các suite `profile-*` bên dưới giữ làm bằng chứng cho luồng Agent cũ; selector đăng nhập/desktop của chúng thuộc UI cũ. Không dùng kết quả26 ca lịch sử để kết luận nghiệm thu UI mô phỏng server mới. Backend legacy tests vẫn chạy với `Simulation:UseAgent=true` riêng.
+
 # Kiểm thử live profile trên Windows
 
 Bộ chạy dùng HTTP API, SQL Server LocalDB, Edge và Python Agent thật ở mode `simulated`. Không mock API; không đọc inventory máy, không dùng database `ITManagement` hoặc Desktop/Documents Windows.

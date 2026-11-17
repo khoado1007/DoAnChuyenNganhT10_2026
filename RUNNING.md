@@ -1,9 +1,31 @@
 # Chạy đồ án trên Windows với SQL Server LocalDB
 
+## Luồng chính — cập nhật 17/11/2026
+
+Luồng mô phỏng web **không cần Python Agent, enrollment token hoặc quyền riêng từng máy**. API mặc định `Simulation:UseAgent=false`. Admin tạo/kích hoạt Employee và thêm máy Desktop/Laptop/Server ở trạng thái Sẵn sàng hoặc Đã bàn giao. Mọi Employee active được đăng nhập các máy này.
+
+1. Admin vào `/admin` → Tài khoản để tạo Employee; Tài sản để thêm máy, mở **Cấu hình mô phỏng** nhập thông số/phần mềm. Dữ liệu chưa nhập hiển thị “Chưa khai báo”.
+2. Employee mở `/` hoặc `/employee` → chọn máy → đăng nhập → xem Chi tiết, Phần mềm, Desktop/Documents. Không có quyền sửa cấu hình máy.
+3. Trong Desktop/Documents: tạo/sửa TXT/CSV, nhập Office/PDF, đổi tên/di chuyển/sao chép/xóa/khôi phục. Mặc định 10 file/profile; quản trị chỉnh ở Quota.
+
+File lưu thật trên server: mặc định `backend/src/ITManagement.API/storage/simulation` khi chạy API từ project này; có thể đặt `Simulation__StorageRoot` thành đường dẫn tuyệt đối riêng. Blob dùng GUID, tách theo máy/người/profile; tên và thư mục Desktop/Documents/RecycleBin lưu trong SQL. Không dùng đường dẫn phần mềm trong bảng Software để mở file trên server. Nội dung nằm ngoài web root, chỉ đọc qua phiên hợp lệ. Phiên bản blob cũ/orphan được giữ, chưa có tác vụ tự dọn; cần sao lưu cả DB và kho file.
+
+Migration mới: `20261116145149_ServerSimulation` chỉ thêm cột/bảng. Sao lưu DB trước khi áp dụng; không xóa/reseed dữ liệu. Profile Agent cũ được đánh dấu `Agent` và không tự đổi sang `Server`. Người dùng chọn giữ file cũ, chuyển sau; profile Agent cũ và profile Server mới được giữ riêng cho cùng người–máy, nên dữ liệu cũ không chặn đăng nhập mới. File Agent cũ chưa xuất hiện trong Desktop/Documents mới cho đến khi chuyển nội dung. Migration SeparateServerAndAgentProfiles đổi khóa duy nhất theo người–máy–backend; không downgrade khi đã có cả hai profile nếu chưa có kế hoạch gộp dữ liệu.
+
+Kiểm thử SQL + trình duyệt không Agent (DB GUID riêng, cổng5189/5190, tự cleanup):
+
+```powershell
+dotnet build backend/ITManagement.slnx --artifacts-path artifacts/server-simulation
+# Đặt PLAYWRIGHT_MODULE nếu Playwright cài bên ngoài workspace.
+.\.test-venv\Scripts\python.exe backend\tests\server_simulation_e2e.py
+```
+
+Python ở lệnh trên chỉ điều phối kiểm thử; không cần Python để chạy web/API hằng ngày. Các hướng dẫn Agent bên dưới là luồng cũ, chỉ dùng khi chủ động đặt `Simulation__UseAgent=true`; không dùng cho demo mô phỏng web mới.
+
 ## Môi trường
-- .NET SDK hỗ trợ net10.0, Node.js/npm và Python 3.11+.
+- Chạy ứng dụng: .NET SDK hỗ trợ net10.0, Node.js/npm. Python3.11+ chỉ cần cho bộ kiểm thử hoặc Agent legacy.
 - SQL Server Express LocalDB: `(localdb)\MSSQLLocalDB`, Windows Authentication.
-- Không dùng Docker. Không cần mở SSMS để chạy API; LocalDB tự khởi động khi kết nối.
+- Không dùng Docker. Khi alias LocalDB không tự kết nối trong môi trường hiện tại, mở SSMS kết nối `(localdb)\MSSQLLocalDB`; không reset instance.
 - Chạy lệnh từ thư mục gốc repository. Không đổi/xóa database `ITManagement` để sửa lỗi test.
 
 ## API và database hiện có
@@ -42,15 +64,15 @@ npm --prefix frontend/admin run dev
 ```
 
 Mở http://localhost:5173. URL gốc tự chuyển đến `/employee`; Vite chuyển `/api` sang API cổng 5038.
-- `/employee`: cổng nhân viên và đăng nhập nhân viên nếu chưa có phiên.
+- `/employee`: chọn máy trước, sau đó đăng nhập tài khoản nhân viên.
 - `/admin`: nhập trực tiếp URL để mở cổng Admin, nền navy và thẻ đăng nhập trắng. Không có liên kết sang Admin ở cổng nhân viên/trang chọn máy. Chỉ tài khoản Admin đăng nhập tại cổng này.
 - `/login`: đường dẫn đăng nhập tương thích; tài khoản sẽ được đưa đến khu vực theo vai trò.
 - `/machines`: chọn máy, đăng nhập Domain ID mô phỏng và làm việc với profile.
 
 Giao diện nhân viên nằm chung React SPA trong `frontend/admin`; `frontend/employee` chưa có ứng dụng riêng.
-`?demo=1` là dữ liệu mô phỏng trong trình duyệt; dùng `?demo=0` để trở lại API thật. Không dùng kết quả demo làm bằng chứng lưu file qua Agent.
+`?demo=1` là dữ liệu mô phỏng trong trình duyệt; dùng `?demo=0` để trở lại API thật. Không dùng kết quả demo làm bằng chứng lưu file thật trên server.
 
-## Python Agent
+## Python Agent — legacy, tùy chọn
 
 Xem [agent/README.md](agent/README.md). Chạy `serve-files` với state và root riêng theo Real/Simulated. Enrollment không tạo tài khoản nhân viên. Không dùng Desktop/Documents thật của Windows làm root.
 
@@ -75,61 +97,9 @@ Nếu LocalDB lỗi khởi động, kiểm tra kết nối SSMS và `sqllocaldb 
 
 Các file `backend/docker-compose.yml`, Dockerfile và test reverse-proxy cổng 8088 là tài liệu/công cụ cũ; không cần chạy trong cấu hình Windows này. Chạy test giao diện thật bằng các smoke script chỉ với database demo/test, vì chúng tạo dữ liệu.
 
-## Kết quả xác minh ngày 11/11/2026
+## Tài liệu và luồng cũ
 
-- Backend: 82/82 test đạt trên SQL Server LocalDB, bao gồm migration từ database mới, snapshot khớp model, migrate lại giữ dữ liệu, cấp phát đồng thời, token Agent, phiên thiết bị và quota.
-- Lệnh: `dotnet test backend/ITManagement.slnx --no-restore --logger "console;verbosity=normal"`.
-- Trong tiến trình Codex, phân giải alias LocalDB báo lỗi dù SQL Server đang chạy. Lần kiểm tra dùng `TEST_SQLSERVER` trỏ tới named pipe hiện tại của chính instance đó, với Windows Authentication; không thay đổi cấu hình SQL Server. Địa chỉ pipe thay đổi khi instance khởi động lại, không lưu nó vào appsettings.
-- Chỉ database test có GUID được tạo/xóa; không migrate database `ITManagement`.
-- Phạm vi lần này là chuyển đổi backend/database. Lỗi Python Agent và nghiệm thu toàn bộ giao diện với Agent thật chưa được xử lý trong thay đổi này.
-
-## Kiểm tra giao diện khôi phục phiên — 12/11/2026
-
-Cổng nhân viên có nút **Chọn máy làm việc**. Sau khi đăng nhập máy, F5 khôi phục phiên trong cùng tab khi API xác nhận quyền hợp lệ. Lỗi kết nối có nút Thử lại; hết hạn/thu hồi quyền yêu cầu đăng nhập lại. Nội dung chưa bấm Lưu không được giữ qua F5.
-
-Chạy Vite ở cổng 5192 trong terminal riêng, rồi chạy browser smoke (API giả lập, không ghi database):
-
-```powershell
-npm --prefix frontend/admin run dev -- --port 5192 --host 127.0.0.1
-# Terminal khác; cần Playwright và Microsoft Edge.
-# Nếu Playwright không có trong node_modules, đặt PLAYWRIGHT_MODULE tới đường dẫn module đã cài.
-node frontend/admin/tests/session/machine-refresh.cjs
-```
-
-Có thể đặt `ITAM_UI_URL` khi dùng cổng khác, `ITAM_SCREENSHOT_DIR` khi cần ảnh mobile. Test này không thay thế nghiệm thu với API và Python Agent thật.
-
-## Nghiệm thu luồng file thật — 15/11/2026
-
-Đã kiểm tra bằng Edge + API HTTP + LocalDB + Python `serve_files` thật (mode `simulated`), trên database và thư mục test riêng: **8/8 ca đạt** gồm portal/chọn máy/đăng nhập, tạo/đọc/sửa/lưu file, F5 giữ phiên, quota đồng thời, chặn nhân viên khác, logout, thu hồi quyền và đối chiếu nội dung file trên ổ đĩa.
-
-Agent kiểm thử đã dừng; kết quả này không có nghĩa Agent đã được đăng ký cho tài sản hiện có của bạn. Để sử dụng với dữ liệu của bạn, tạo/chọn tài sản, cấp enrollment token đúng mode và chạy `enroll`, sau đó `serve-files` theo [hướng dẫn Agent](agent/README.md). Không đưa token vào command line. Real inventory, khởi động lại Agent và các thao tác file còn lại chưa nằm trong đợt nghiệm thu này.
-
-Đợt mở rộng cùng ngày: **9/9 ca đạt** cho đổi tên, sao chép, di chuyển, xóa, khôi phục, nhập CSV, restart tiến trình Python dùng lại state/root, replay request đã xác nhận và đối chiếu file trên đĩa. Restart thực hiện khi thao tác đã hoàn tất; chưa nghiệm thu crash giữa mutation, restart API hoặc nhập Office/PDF binary. Không cần sửa mã ứng dụng trong đợt này.
-
-## Đối soát profile bị gián đoạn — 16/11/2026
-
-Trong **Admin → Quota profile**, cột **Giữ chỗ** và **Trạng thái** cho biết thao tác chưa được xác nhận. Chọn **Đối soát → Yêu cầu đối soát** để Agent kiểm tra metadata của vùng lưu trữ hiện có. Khi thành công, số file/quota được cập nhật và reservation của thao tác cũ được giải phóng. **Nhật ký đối soát** hiển thị 20 sự kiện mới nhất với người yêu cầu và thời gian.
-
-- Agent không xóa file, không đọc nội dung tài liệu để gửi cho Admin và không thực hiện lại lệnh bị gián đoạn.
-- Nếu Agent offline, storage thiếu, không đọc được thư mục hoặc trả metadata không hợp lệ, quota giữ chỗ vẫn được giữ. Giữ đúng state/root của Agent gốc; không xóa state hoặc tăng quota để coi như đã đối soát.
-- Chờ ít nhất 15 giây trước khi yêu cầu lại nếu một attempt còn đang chờ. Kết quả cũ không được ghi đè attempt mới.
-- Sau đối soát, nhân viên kiểm tra danh sách file rồi thực hiện thao tác mới nếu cần. Request cũ trả `OPERATION_RECONCILED`, không được tự replay thành công.
-- Cần chạy API và Agent cùng phiên bản hỗ trợ đối soát. Không cần migration mới: chỉ lưu metadata điều khiển vào trường hiện có, không lưu body tài liệu.
-
-### Bộ kiểm thử tái lập
-
-```powershell
-.\.test-venv\Scripts\python.exe agent\profile_e2e.py --suite all
-```
-
-Chuẩn bị Playwright/Edge, `sqlcmd`, LocalDB và dependency theo [README bộ kiểm thử live](frontend/admin/tests/live/README.md). Runner tạo DB GUID riêng, build API riêng, tự chạy/dừng API/Vite/Agent/Edge và lưu summary/log/ảnh trong `artifacts/profile-e2e/`. Không dùng database nghiệp vụ. Các kết quả cũ phía trên là mốc lịch sử; trạng thái kiểm thử mới nhất nằm trong [file tiến độ](TIEN_DO_DO_AN.md).
-
-### Kịch bản demo ngắn
-
-1. Admin: tạo nhân viên, tài sản; cấp quyền truy cập máy và enrollment token `simulated`.
-2. Enroll Agent vào state riêng rồi chạy `serve-files` với root ứng dụng riêng theo hướng dẫn Agent.
-3. Nhân viên: `/employee` → **Chọn máy làm việc** → Domain ID `COMPANY\<username>` → tạo TXT, lưu, F5, kiểm tra nội dung.
-4. Đổi tên/sao chép/di chuyển/xóa/khôi phục; kiểm tra số file và quota; đăng xuất.
-5. Minh họa sự cố/đối soát bằng suite `recovery` trên DB thử. Không cố tình gây sự cố với tài liệu đang sử dụng.
-
-Admin chỉ quản lý metadata/quota, không có màn hình đọc nội dung file cá nhân. Đây là mô phỏng domain trong ứng dụng, không phải đăng nhập Windows/Active Directory thật.
+- [Lịch sử nghiệm thu và demo Agent](legacy/README.md): giữ để tra cứu, không phải hướng dẫn demo hiện tại.
+- [Python Agent](agent/README.md): phần mở rộng cũ, không cần chạy cho mô phỏng web.
+- Storage cũ theo quota byte vẫn được giữ cùng dữ liệu/API. Luồng mới dùng profile theo người–máy và quota số file; chưa hợp nhất hay xóa storage cũ.
+- File Agent cũ được giữ nguyên theo lựa chọn của người dùng; chỉ chuyển khi có đúng thư mục nguồn.

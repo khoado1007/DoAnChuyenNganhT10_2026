@@ -1,6 +1,6 @@
 # Python Agent: đăng ký và heartbeat
 
-> **Hướng triển khai hiện tại — 16/11/2026:** xem [hướng dẫn chạy Windows/LocalDB](../RUNNING.md). Agent lưu nội dung bền vững trên ổ local; server quản lý quyền/quota và metadata đo lường. Các mô tả heartbeat/connectivity bên dưới thuộc baseline cũ, không phải yêu cầu làm dashboard online/offline. Luồng file đã có bộ kiểm thử live trên LocalDB/API/Edge/Python Agent mode simulated; xem phần kiểm thử tái lập trong RUNNING.md và tiến độ để biết phạm vi đã đạt.
+> **Legacy — cập nhật17/11/2026:** luồng mô phỏng web hiện tại không cần Agent/token. File mới được API lưu trên server, Employee active dùng mọi máy active. Tài liệu này chỉ dành cho Agent và dữ liệu cũ được giữ lại. Xem [hướng dẫn hiện tại](../RUNNING.md) và [lịch sử nghiệm thu](../legacy/README.md). Không chạy các bước enrollment bên dưới để demo luồng mới.
 
 
 Một codebase cho `real` và `simulated`, mỗi instance dùng một file state riêng. `real` chỉ gửi hostname, OS, CPU, tổng RAM và phiên bản Agent khi truyền `--consent-inventory`. `simulated` đọc fixture và server giữ nhãn chế độ từ token, không cho heartbeat tự đổi nhãn. Không tạo tài khoản OS, không chạy lệnh từ xa, không đọc tài liệu cá nhân.

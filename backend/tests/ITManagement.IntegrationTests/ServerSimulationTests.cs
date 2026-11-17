@@ -145,8 +145,13 @@ public sealed class ServerSimulationTests(ServerApiFactory factory) : IClassFixt
         Assert.Equal(1, (await db.LocalProfiles.AsNoTracking().SingleAsync(p => p.Id == profileId)).UsedFiles);
         await Data(await e.PostAsJsonAsync($"/api/machines/{asset}/logout", new { }));
         await db.LocalProfiles.Where(p => p.Id == profileId).ExecuteUpdateAsync(s => s.SetProperty(p => p.StorageBackend, "Agent"));
-        Assert.Equal(HttpStatusCode.Conflict, (await e.PostAsJsonAsync($"/api/machines/{asset}/sessions", new { })).StatusCode);
+        var newSession = await Data(await e.PostAsJsonAsync($"/api/machines/{asset}/sessions", new { }));
+        Assert.NotEqual(profileId, newSession.GetProperty("profileId").GetGuid());
         Assert.True(await db.ProfileFiles.AnyAsync(f => f.Id == fileId));
+        Assert.Equal("Agent", (await db.LocalProfiles.AsNoTracking().SingleAsync(p => p.Id == profileId)).StorageBackend);
+        var serverProfile = await db.LocalProfiles.AsNoTracking().SingleAsync(p => p.Id == newSession.GetProperty("profileId").GetGuid());
+        Assert.Equal("Server", serverProfile.StorageBackend);
+        Assert.Equal(0, serverProfile.UsedFiles);
     }
 
     [Fact]
