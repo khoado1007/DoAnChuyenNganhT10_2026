@@ -6,6 +6,8 @@
 
 ## 1. Cách dùng file này
 
+**Bổ sung yêu cầu 18/11:** Employee chưa có trang **Thông tin tài khoản** để tự đổi mật khẩu. Đã ghi vào bước vòng đời mật khẩu trong `docs/PLAN_PASSWORD_SOFTWARE.md`: thêm điểm truy cập từ khu vực Employee, xem thông tin tài khoản và chủ động đổi mật khẩu ngoài popup nhắc. Hiện chỉ ghi kế hoạch, chưa triển khai; chưa mở rộng sang sửa hồ sơ cá nhân.
+
 Theo yêu cầu của người dùng, đây là file bàn giao khi phiên làm việc gần hết giới hạn, không phải báo cáo tự động hằng ngày.
 
 - Đọc file này và kiểm tra `git status --short` trước khi tiếp tục ở phiên mới.
