@@ -24,4 +24,7 @@ public sealed class UsersController(IUserService users) : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ApiResponse<UserResponse>>> Update(Guid id, UpdateUserRequest request, CancellationToken ct)
         => Ok(ApiResponse<UserResponse>.Ok(await users.UpdateAsync(id, request, ct)));
+    [HttpPost("{id:guid}/reset-password")]
+    public async Task<IActionResult> ResetPassword(Guid id, CancellationToken ct)
+        => Ok(ApiResponse<UserResponse>.Ok(await users.ResetPasswordAsync(id, ct)));
 }

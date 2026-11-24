@@ -120,6 +120,10 @@ button:focus-visible, a:focus-visible, .ant-btn:focus-visible, .ant-input:focus-
 .eyebrow { color: #74818d; display: block; font-size: 10px; font-weight: 700; letter-spacing: .105em; margin-bottom: 8px; }
 .page-heading h1.ant-typography { color: var(--color-primary); font-size: 29px; letter-spacing: -.035em; line-height: 1.15; margin: 0 0 6px; }
 .page-description { color: #667482; font-size: 13px; }
+.table-link { background: none; border: 0; color: #0047AB; cursor: pointer; font: inherit; padding: 0; text-align: left; }
+.table-link:hover { text-decoration: underline; }
+.table-link:focus-visible { outline: 2px solid #6CB8F8; outline-offset: 2px; }
+.ticket-action-panel { border-top: 1px solid #e8edf2; margin-top: 8px; padding-top: 4px; }
 .page-heading > .ant-btn { height: 39px; }
 .metric-grid { display: grid; gap: 15px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .metric-card { border-radius: 8px; min-height: 154px; }

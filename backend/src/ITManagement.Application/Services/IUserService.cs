@@ -4,6 +4,7 @@ namespace ITManagement.Application.Services;
 
 public interface IUserService
 {
+    Task<UserResponse> ResetPasswordAsync(Guid id, CancellationToken ct);
     /// <summary>Liệt kê tài khoản theo bộ lọc và phân trang.</summary>
     Task<PagedResult<UserResponse>> ListAsync(UserQuery query, CancellationToken ct);
     /// <summary>Tạo tài khoản nhân viên mới.</summary>

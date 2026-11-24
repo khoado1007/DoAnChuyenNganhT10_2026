@@ -1,8 +1,10 @@
 export type Software = {
+  id?: string | null; kind?: 'App' | 'Service' | null;
   name: string; version: string | null; type: string | null; vulnerabilities: string | null;
   lastUsedAt: string | null; filePath: string | null;
 };
 export type MachineSpecification = {
+  revision?: string;
   operatingSystem: string | null; processor: string | null; memoryGb: number | null;
   diskTotalGb: number | null; diskFreeGb: number | null; diskEncryption: boolean | null;
   collectorVersion: string | null; privateIp: string | null; publicIp: string | null;
@@ -20,3 +22,5 @@ export const specificationLabels = {
 };
 export const displayValue = (value: unknown) => value === null || value === undefined || value === '' ? 'Chưa khai báo' : typeof value === 'boolean' ? (value ? 'Có' : 'Không') : String(value);
 export const displayDate = (value: unknown) => value ? new Date(String(value)).toLocaleString('vi-VN') : 'Chưa khai báo';
+export const softwareKinds = [{ value: 'App', label: 'Ứng dụng (App)' }, { value: 'Service', label: 'Dịch vụ (Service)' }];
+export const softwareKindLabel = (kind: Software['kind']) => softwareKinds.find(option => option.value === kind)?.label ?? 'Chưa phân loại';

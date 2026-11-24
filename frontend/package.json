@@ -1,5 +1,9 @@
 {
-  "dependencies": {
-    "save-dev": "^0.0.1-security"
+  "name": "itdesk-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix admin run dev",
+    "build": "npm --prefix admin run build",
+    "test": "npm --prefix admin test"
   }
 }

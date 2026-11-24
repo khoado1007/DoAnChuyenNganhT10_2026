@@ -1,10 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+test('Admin audit and file metadata links survive reload and preserve role boundaries', async () => {
+  const { resolveRoute, destinationAfterLogin } = await import('../src/routing.ts');
+  for (const section of ['audit-log', 'files-admin']) {
+    const path = `/admin/${section}`;
+    assert.deepEqual(resolveRoute(path, 'Admin'), { kind: 'admin', section });
+    assert.equal(destinationAfterLogin(path, 'Admin'), path);
+    assert.deepEqual(resolveRoute(path, 'Employee'), { kind: 'forbidden' });
+    assert.deepEqual(resolveRoute(path, 'Technician'), { kind: 'forbidden' });
+    assert.deepEqual(resolveRoute(path + '/unknown', 'Admin'), { kind: 'not-found' });
+  }
+});
+
 test('default and employee entries show machine selection before authentication', async () => {
   const { isMachinePath } = await import('../src/routing.ts');
   for (const path of ['/', '/employee', '/employee/', '/machines', '/machines/pc-1/login', '/machines/pc-1/desktop']) assert.equal(isMachinePath(path), true);
-  for (const path of ['/admin', '/admin/assets', '/technician', '/employees']) assert.equal(isMachinePath(path), false);
+  for (const path of ['/admin', '/admin/assets', '/technician', '/employees', '/employee/tickets', '/technician/tickets']) assert.equal(isMachinePath(path), false);
+});
+
+test('employee ticket portal route keeps role boundaries and survives reload', async () => {
+  const { resolveRoute, destinationAfterLogin } = await import('../src/routing.ts');
+  for (const [path, role] of [['/employee/tickets', 'Employee'], ['/technician/tickets', 'Technician']]) {
+    assert.deepEqual(resolveRoute(path, role), { kind: 'portal' });
+    assert.equal(destinationAfterLogin(path, role), path);
+  }
+  assert.deepEqual(resolveRoute('/employee/tickets', 'Admin'), { kind: 'forbidden' });
+  assert.deepEqual(resolveRoute('/employee/tickets', 'Technician'), { kind: 'forbidden' });
+  assert.deepEqual(resolveRoute('/employee/other', 'Employee'), { kind: 'not-found' });
+  assert.deepEqual(resolveRoute('/technician/tickets', 'Employee'), { kind: 'forbidden' });
 });
 
 test('login entries accept only their intended roles', async () => {

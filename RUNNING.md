@@ -68,6 +68,8 @@ Mở http://localhost:5173. URL gốc tự chuyển đến `/employee`; Vite chu
 - `/admin`: nhập trực tiếp URL để mở cổng Admin, nền navy và thẻ đăng nhập trắng. Không có liên kết sang Admin ở cổng nhân viên/trang chọn máy. Chỉ tài khoản Admin đăng nhập tại cổng này.
 - `/login`: đường dẫn đăng nhập tương thích; tài khoản sẽ được đưa đến khu vực theo vai trò.
 - `/machines`: chọn máy, đăng nhập Domain ID mô phỏng và làm việc với profile.
+- `/employee/tickets`: cổng Employee gửi/theo dõi yêu cầu hỗ trợ (cũng mở được từ nút **Yêu cầu hỗ trợ** trên màn hình chọn máy).
+- `/admin/tickets`: Admin lọc, xem chi tiết, trao đổi, thêm ghi chú nội bộ và chuyển trạng thái ticket.
 
 Giao diện nhân viên nằm chung React SPA trong `frontend/admin`; `frontend/employee` chưa có ứng dụng riêng.
 `?demo=1` là dữ liệu mô phỏng trong trình duyệt; dùng `?demo=0` để trở lại API thật. Không dùng kết quả demo làm bằng chứng lưu file thật trên server.
@@ -80,6 +82,7 @@ Xem [agent/README.md](agent/README.md). Chạy `serve-files` với state và roo
 
 ```powershell
 dotnet test backend/ITManagement.slnx
+dotnet test backend/ITManagement.slnx --filter "FullyQualifiedName~TicketTests"
 npm --prefix frontend/admin test
 npm --prefix frontend/admin run build
 .\.test-venv\Scripts\python.exe -m pytest agent/tests -q
@@ -94,6 +97,27 @@ python -m venv .test-venv
 
 Integration tests tạo database `itmanagement_test_<GUID>` trên LocalDB, migrate/seed riêng và xóa database test khi hoàn tất. Không dùng `ITManagement`. Có thể đặt `TEST_SQLSERVER` để chọn SQL Server test khác; tên database trong chuỗi kết nối luôn được thay bằng tên test mới. Dashboard test dùng cùng cấu hình server và tiền tố `itam_dashboard_test_`.
 Nếu LocalDB lỗi khởi động, kiểm tra kết nối SSMS và `sqllocaldb info MSSQLLocalDB`; không xóa instance hoặc dữ liệu để thử sửa.
+
+Smoke 2 trang Admin (Nhật ký thao tác file, Metadata file) dùng fixture API, Edge headless và Vite đang chạy ở 5173:
+
+```powershell
+npm --prefix frontend/admin install --no-save --package-lock=false playwright@1.62.1
+node frontend/admin/tests/admin-audit-pages.cjs
+```
+
+`UI_BASE_URL` mặc định `http://127.0.0.1:5173`; đặt `PLAYWRIGHT_MODULE` nếu module Playwright nằm ngoài `frontend/admin/node_modules`. Lệnh cài chỉ thêm module vào `node_modules`, không đổi `package.json`/lockfile.
+
+Smoke Ticket dùng fixture API (không tạo dữ liệu thật):
+
+```powershell
+node frontend/admin/tests/tickets.cjs
+```
+
+`tickets-live.cjs` kiểm thử luồng thật Employee → Admin qua HTTP và tạo user/ticket trong database đang cấu hình. Chỉ chạy khi API trỏ database test GUID riêng (không dùng `ITManagement`), sau đó dừng API và drop đúng database test:
+
+```powershell
+node frontend/admin/tests/tickets-live.cjs
+```
 
 Các file `backend/docker-compose.yml`, Dockerfile và test reverse-proxy cổng 8088 là tài liệu/công cụ cũ; không cần chạy trong cấu hình Windows này. Chạy test giao diện thật bằng các smoke script chỉ với database demo/test, vì chúng tạo dữ liệu.
 

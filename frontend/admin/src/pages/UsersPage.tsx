@@ -1,6 +1,6 @@
 import { isDemoMode } from '../demo/mode';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Form, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { api } from '../api/auth';
 import type { UserResponse, UserRole, UserStatus } from '../types/auth';
@@ -22,6 +22,8 @@ export default function UsersPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<UserResponse | null>(null);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
   const [form] = Form.useForm<Values>();
   useEffect(() => {
     // Tải trang tài khoản theo truy vấn hiện tại và hủy request khi component đổi bộ lọc.
@@ -46,7 +48,7 @@ export default function UsersPage() {
       const { email, fullName, department, role, status } = values;
       await api(editing ? `/users/${editing.id}` : '/users', {
         method: editing ? 'PUT' : 'POST',
-        body: JSON.stringify(editing ? { email, fullName, department, role, status } : { username: values.username, email, fullName, department: department || '', role, password: values.password }),
+        body: JSON.stringify(editing ? { email, fullName, department, role, status } : { username: values.username, email, fullName, department: department || '', role, password: '12345Az@' }),
       });
       setOpen(false); form.resetFields(); setRevision(value => value + 1);
     } catch (cause) {
@@ -57,6 +59,11 @@ export default function UsersPage() {
       }
     } finally { setSaving(false); }
   }
+  async function resetPassword(row: UserResponse) {
+    setResetting(row.id); setError(''); setNotice('');
+    try { await api(`/users/${row.id}/reset-password`, {method:'POST'}); setNotice(`Đã reset ${row.username} về 12345Az@. Phiên cũ bị thu hồi; trạng thái khóa được giữ nguyên.`); setRevision(x=>x+1); }
+    catch (e) { setError((e as Error).message); } finally {setResetting(null);}
+  }
   const columns: ColumnsType<UserResponse> = [
     { title: 'Tên đăng nhập', dataIndex: 'username' },
     { title: 'Họ và tên', dataIndex: 'fullName' },
@@ -64,10 +71,11 @@ export default function UsersPage() {
     { title: 'Phòng ban', dataIndex: 'department' },
     { title: 'Vai trò', dataIndex: 'role', render: (role: UserRole) => role === 'Admin' ? 'Quản trị viên' : roles.find(value => value.value === role)?.label },
     { title: 'Trạng thái', dataIndex: 'status', render: (status: UserStatus) => <Tag color={status === 'Active' ? 'green' : 'default'}>{statuses.find(value => value.value === status)?.label}</Tag> },
-    { title: 'Thao tác', key: 'actions', render: (_: unknown, row: UserResponse) => <Button disabled={row.role === 'Admin'} onClick={() => show(row)}>Chỉnh sửa</Button> },
+    { title: 'Thao tác', key: 'actions', render: (_: unknown, row: UserResponse) => <Space wrap><Button disabled={row.role === 'Admin'} onClick={() => show(row)}>Chỉnh sửa</Button><Popconfirm title={`Reset mật khẩu ${row.username}?`} description="Mật khẩu mới12345Az@, thu hồi phiên cũ. Không tự mở khóa tài khoản." okText="Reset" cancelText="Hủy" onConfirm={()=>resetPassword(row)}><Button disabled={row.role==='Admin'||isDemoMode||resetting!==null} loading={resetting===row.id}>Reset mật khẩu</Button></Popconfirm></Space> },
   ];
   return <main className="page-content">
     <div className="page-heading"><div><Typography.Title level={1}>Tài khoản</Typography.Title><Typography.Text>Quản lý nhân viên và kỹ thuật viên · {isDemoMode ? 'Dữ liệu demo' : 'Dữ liệu từ máy chủ'}</Typography.Text></div><Button type="primary" onClick={() => show(null)}>Thêm tài khoản</Button></div>
+    {notice && <Alert type="success" showIcon message={notice} style={{marginBottom:16}} />}
     {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
     <Space style={{ marginBottom: 16 }} wrap><Input.Search aria-label="Tìm tài khoản" placeholder="Tên, email, họ tên" maxLength={100} allowClear onSearch={value => { setSearch(value); setPage(1); }} /><Button onClick={() => setRevision(value => value + 1)}>Làm mới</Button></Space>
     <Table<UserResponse> rowKey="id" columns={columns} dataSource={data?.items ?? []} loading={loading} scroll={{ x: 1000 }} pagination={{ current: page, pageSize: 10, total: data?.totalCount ?? 0, showSizeChanger: false, onChange: setPage }} locale={{ emptyText: 'Chưa có tài khoản phù hợp' }} />
@@ -79,7 +87,7 @@ export default function UsersPage() {
         <Form.Item name="email" label="Email" rules={[{ required: true }, { type: 'email' }]}><Input maxLength={200} /></Form.Item>
         <Form.Item name="department" label="Phòng ban"><Input maxLength={100} /></Form.Item>
         <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}><Select options={roles} /></Form.Item>
-        {!editing && <Form.Item name="password" label="Mật khẩu ban đầu" rules={[{ required: true, min: 8 }]}><Input.Password maxLength={256} autoComplete="new-password" /></Form.Item>}
+        {!editing && <Alert style={{marginBottom:16}} type="info" message="Mật khẩu ban đầu: 12345Az@" description="Nhân viên có 7 ngày từ lần đăng nhập đầu tiên để đổi mật khẩu; nhắc lại ở ngày 5, 6 và 7." />}
         {editing && <><Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}><Select options={statuses} /></Form.Item><Alert style={{ marginBottom: 16 }} type="info" message="Đổi vai trò hoặc trạng thái sẽ thu hồi các phiên đăng nhập hiện tại. Tài khoản cần đăng nhập lại." /></>}
         <Button type="primary" htmlType="submit" loading={saving}>Lưu tài khoản</Button>
       </Form>

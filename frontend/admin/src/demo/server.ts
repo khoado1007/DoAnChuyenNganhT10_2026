@@ -1,4 +1,4 @@
-import type { MachineSpecification } from '../types/machine-information.ts';
+import type { MachineSpecification, Software } from '../types/machine-information.ts';
 import type { UserResponse } from '../types/auth.ts';
 import type { AssetResponse } from '../types/asset.ts';
 import type { MachineProfile, ProfileFile } from '../api/machines.ts';
@@ -8,6 +8,13 @@ type DemoFile = ProfileFile & { content: string };
 type Profile = { id: string; userId: string; deviceId: string; maxFiles: number; files: DemoFile[]; trash: DemoFile[] };
 type Session = { id: string; userId: string; deviceId: string; profileId: string };
 type Assignment = { id: string; assetId: string; userId: string; username: string; status: string; assignedAt: string; assignedBy: string; notes: string; returnedAt: string | null; closedBy: string | null; closeNotes: string | null };
+type DemoTicket = {
+  id: string; ticketNumber: string; title: string; description: string; category: string; priority: string;
+  status: string; createdByUserId: string; createdByName: string; assignedToUserId: string | null;
+  assignedToName: string | null; createdAt: string; updatedAt: string | null; resolvedAt: string | null;
+  resolution: string | null; comments: { id: string; authorUsername: string; content: string; isInternal: boolean; createdAt: string }[];
+  history: { fromStatus: string; toStatus: string; changedByUsername: string; note: string | null; changedAt: string }[];
+};
 const uid = () => createUuid();
 const now = () => new Date().toISOString();
 const response = (data: unknown, status = 200, message = '') => Response.json({ success: status < 400, data, message, errors: null }, { status });
@@ -28,11 +35,24 @@ export function createDemoFetch(): typeof fetch {
     { id: 'pc-003', assetCode: 'PC-003', name: 'Laptop phòng Kế toán', type: 'Laptop', status: 'Available', serialNumber: 'DEMO-LN-2026-03', manufacturer: 'Lenovo', model: 'ThinkPad E14', location: 'Tầng 1 · Phòng Kế toán', notes: '', createdAt: now(), updatedAt: null },
   ];
   const specifications = new Map<string, Partial<MachineSpecification>>();
-  const information = (asset: AssetResponse) => ({ ...asset, assetId: asset.id, ...specifications.get(asset.id), software: specifications.get(asset.id)?.software ?? [], status: 'simulated' });
+  const information = (asset: AssetResponse) => ({ ...asset, assetId: asset.id, revision: '0', ...specifications.get(asset.id), software: specifications.get(asset.id)?.software ?? [], status: 'simulated' });
+  const employeeInfo = (asset: AssetResponse) => {
+    const info = information(asset);
+    return { ...info, software: info.software.map(item => ({ ...item, filePath: null })) };
+  };
+  const approvalAttempts = new Map<string, number[]>();
   const profiles: Profile[] = [];
   const sessions: Session[] = [];
   const grants = new Set(['pc-001:demo-khoa', 'pc-001:demo-an', 'pc-002:demo-khoa', 'pc-002:demo-an', 'pc-003:demo-an']);
   const assignments: Assignment[] = [{ id: uid(), assetId: 'pc-001', userId: 'demo-khoa', username: 'khoa', status: 'Active', assignedAt: now(), assignedBy: 'admin', notes: 'Cấp phát cho nhóm Sản phẩm', returnedAt: null, closedBy: null, closeNotes: null }];
+  const tickets: DemoTicket[] = [
+    { id: uid(), ticketNumber: 'TKT-2026-0001', title: 'Máy trạm không kết nối được mạng nội bộ', description: 'Từ sáng nay máy PC-001 không mở được thư mục dùng chung. Đã thử khởi động lại máy nhưng vẫn lỗi.', category: 'Network', priority: 'High', status: 'Open', createdByUserId: 'demo-khoa', createdByName: 'Trần Đăng Khoa', assignedToUserId: null, assignedToName: null, createdAt: new Date(Date.now() - 3 * 3600000).toISOString(), updatedAt: null, resolvedAt: null, resolution: null, comments: [], history: [] },
+    { id: uid(), ticketNumber: 'TKT-2026-0002', title: 'Cần cài thêm công cụ đọc PDF', description: 'Máy laptop phòng Kế toán chưa có phần mềm đọc PDF để xem chứng từ.', category: 'Software', priority: 'Medium', status: 'Resolved', createdByUserId: 'demo-an', createdByName: 'Nguyễn Hoài An', assignedToUserId: 'demo-tech', assignedToName: 'Phạm Thùy Linh', createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 86400000).toISOString(), resolvedAt: new Date(Date.now() - 86400000).toISOString(), resolution: 'Đã cài trình đọc PDF và kiểm tra mở chứng từ mẫu.', comments: [
+      { id: uid(), authorUsername: 'an', content: 'Nhờ bộ phận CNTT hỗ trợ giúp em.', isInternal: false, createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+      { id: uid(), authorUsername: 'admin', content: 'Đã xử lý, em kiểm tra lại giúp nhé.', isInternal: false, createdAt: new Date(Date.now() - 86400000).toISOString() },
+    ], history: [{ fromStatus: 'Open', toStatus: 'InProgress', changedByUsername: 'admin', note: 'Đã tiếp nhận', changedAt: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString() }, { fromStatus: 'InProgress', toStatus: 'Resolved', changedByUsername: 'admin', note: null, changedAt: new Date(Date.now() - 86400000).toISOString() }] },
+  ];
+  let ticketSequence = tickets.length;
   const agents = assets.slice(0, 2).map((asset, index) => ({ id: `agent-${index}`, assetId: asset.id, assetCode: asset.assetCode, assetStatus: asset.status, instanceId: `DEMO-${index + 1}`, policy: 'active', mode: index === 0 ? 'real' : 'simulated', hostname: asset.assetCode, os: 'Windows 11 · dữ liệu demo', cpu: 'Intel Core i5', ramBytes: 16 * 1024 ** 3, agentVersion: 'Demo UI', revokedAt: null as string | null, revokedReason: null as string | null }));
   const replay = new Map<string, string>();
   function snapshot(session: Session, profile: Profile, contentBase64?: string): MachineProfile {
@@ -70,7 +90,7 @@ export function createDemoFetch(): typeof fetch {
     if (path === '/auth/me') return response(actor);
     if (path === '/me/assets') return response(assignments.filter(a => a.userId === actor.id && a.status === 'Active').map(a => ({ ...a, assetName: assets.find(x => x.id === a.assetId)?.name, assetCode: assets.find(x => x.id === a.assetId)?.assetCode })));
 
-    const machineMatch = path.match(/^\/machines\/([^/]+)\/(sessions|profile|information|logout|files\/operations)$/);
+    const machineMatch = path.match(/^\/machines\/([^/]+)\/(sessions|profile|information|logout|files\/operations|software\/([^/]+)\/remove)$/);
     if (machineMatch) {
       const [, deviceId, action] = machineMatch;
       const device = assets.find(a => a.id === deviceId);
@@ -88,7 +108,20 @@ export function createDemoFetch(): typeof fetch {
       if (!session || !profile) return fail('Phiên trên máy không còn hiệu lực.', 403);
       if (action === 'logout') { sessions.splice(sessions.indexOf(session), 1); return response(true); }
       if (action === 'profile') return response(snapshot(session, profile));
-      if (action === 'information') return response(information(device));
+      if (action === 'information') return response(employeeInfo(device));
+      if (machineMatch[3]) {
+        if (method !== 'POST') return fail('Thao tác không hợp lệ.', 405);
+        const attempts = (approvalAttempts.get(actor.id) ?? []).filter(time => Date.now() - time < 60000);
+        if (attempts.length >= 5) return fail('Quá nhiều yêu cầu. Vui lòng thử lại sau.', 429);
+        approvalAttempts.set(actor.id, [...attempts, Date.now()]);
+        const admin = users.find(user => user.role === 'Admin' && user.status === 'Active' && user.username.toLowerCase() === String(body.adminUsername).trim().replace(/^COMPANY\\/i, '').toLowerCase());
+        if (!admin || passwords.get(admin.id) !== body.adminPassword) return fail('Không thể xác nhận tài khoản Admin.', 403);
+        const spec = information(device);
+        if (spec.revision !== body.revision) return fail('Cấu hình đã thay đổi. Vui lòng tải lại.', 409);
+        if (!spec.software.some(item => item.id === machineMatch[3])) return fail('Không tìm thấy phần mềm.', 404);
+        specifications.set(deviceId, { ...specifications.get(deviceId), software: spec.software.filter(item => item.id !== machineMatch[3]), revision: uid() });
+        return response(employeeInfo(device));
+      }
       const requestKey = `${profile.id}:${body.requestId}`;
       if (replay.has(requestKey)) {
         if (replay.get(requestKey) !== JSON.stringify(body)) return fail('Mã thao tác đã dùng cho yêu cầu khác.', 409);
@@ -136,6 +169,105 @@ export function createDemoFetch(): typeof fetch {
       if (body.requestId && !['list', 'read'].includes(body.kind)) replay.set(requestKey, JSON.stringify(body));
       return response(snapshot(session, profile, readContent));
     }
+    if (path.startsWith('/tickets')) {
+      const visible = (ticket: DemoTicket) => actor.role === 'Admin' || ticket.createdByUserId === actor.id
+        || (actor.role === 'Technician' && ticket.assignedToUserId === actor.id);
+      const listRow = (ticket: DemoTicket) => ({
+        id: ticket.id, ticketNumber: ticket.ticketNumber, title: ticket.title, category: ticket.category,
+        priority: ticket.priority, status: ticket.status, createdByName: ticket.createdByName,
+        assignedToName: ticket.assignedToName,
+        createdAt: ticket.createdAt, updatedAt: ticket.updatedAt,
+      });
+      const detailRow = (ticket: DemoTicket) => ({
+        ...listRow(ticket), description: ticket.description, createdByUserId: ticket.createdByUserId,
+        assignedToUserId: ticket.assignedToUserId, assignedToName: ticket.assignedToName,
+        resolvedAt: ticket.resolvedAt, resolution: ticket.resolution,
+        comments: ticket.comments.filter(comment => actor.role !== 'Employee' || !comment.isInternal),
+        history: ticket.history,
+      });
+      if (path === '/tickets' && method === 'GET') {
+        const search = (url.searchParams.get('search') ?? '').toLocaleLowerCase('vi');
+        const status = url.searchParams.get('status');
+        const category = url.searchParams.get('category');
+        const priority = url.searchParams.get('priority');
+        const rows = tickets.filter(visible).filter(ticket =>
+          (!search || `${ticket.ticketNumber} ${ticket.title} ${ticket.createdByName}`.toLocaleLowerCase('vi').includes(search))
+          && (!status || ticket.status === status) && (!category || ticket.category === category)
+          && (!priority || ticket.priority === priority));
+        const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize')) || 20));
+        const pageNumber = Math.max(1, Number(url.searchParams.get('page')) || 1);
+        return response({
+          items: rows.slice((pageNumber - 1) * pageSize, pageNumber * pageSize).map(listRow),
+          totalCount: rows.length, page: pageNumber, pageSize,
+          totalPages: Math.ceil(rows.length / pageSize), hasPreviousPage: pageNumber > 1,
+          hasNextPage: pageNumber * pageSize < rows.length,
+        });
+      }
+      if (path === '/tickets' && method === 'POST') {
+        if (actor.role !== 'Employee') return fail('Chỉ nhân viên được gửi yêu cầu hỗ trợ.', 403);
+        const title = String(body.title ?? '').trim();
+        const description = String(body.description ?? '').trim();
+        if (title.length < 5 || description.length < 10) return fail('Tiêu đề tối thiểu 5 ký tự và mô tả tối thiểu 10 ký tự.');
+        if (!['Hardware', 'Software', 'Network', 'Account', 'Storage', 'Other'].includes(body.category)
+          || !['Low', 'Medium', 'High', 'Critical'].includes(body.priority)) return fail('Danh mục hoặc ưu tiên không hợp lệ.');
+        const ticket: DemoTicket = {
+          id: uid(), ticketNumber: `TKT-${new Date().getFullYear()}-${String(++ticketSequence).padStart(4, '0')}`,
+          title, description, category: body.category, priority: body.priority, status: 'Open',
+          createdByUserId: actor.id, createdByName: actor.fullName, assignedToUserId: null, assignedToName: null,
+          createdAt: now(), updatedAt: null, resolvedAt: null, resolution: null, comments: [], history: [],
+        };
+        tickets.push(ticket);
+        return response(detailRow(ticket));
+      }
+      const ticketMatch = path.match(/^\/tickets\/([^/]+)(?:\/(status|comments|assign))?$/);
+      if (ticketMatch) {
+        const [, id, action] = ticketMatch;
+        const ticket = tickets.find(item => item.id === id);
+        if (!ticket || !visible(ticket)) return fail('Không tìm thấy yêu cầu hỗ trợ.', 404);
+        if (!action && method === 'GET') return response(detailRow(ticket));
+        if (action === 'comments' && method === 'POST') {
+          const content = String(body.content ?? '').trim();
+          if (!content) return fail('Nội dung bình luận không được để trống.');
+          if (body.isInternal && actor.role === 'Employee') return fail('Nhân viên không được tạo ghi chú nội bộ.', 403);
+          const comment = { id: uid(), authorUsername: actor.username, content,
+            isInternal: Boolean(body.isInternal) && actor.role !== 'Employee', createdAt: now() };
+          ticket.comments.push(comment); ticket.updatedAt = now();
+          return response(comment);
+        }
+        if (action === 'assign' && method === 'PATCH') {
+          if (actor.role !== 'Admin') return fail('Chỉ quản trị viên được phân công yêu cầu hỗ trợ.', 403);
+          if (body.assignedToUserId) {
+            const tech = users.find(u => u.id === body.assignedToUserId && u.role === 'Technician' && u.status === 'Active');
+            if (!tech) return fail('Kỹ thuật viên không tồn tại hoặc không ở trạng thái hoạt động.', 400);
+            ticket.assignedToUserId = tech.id;
+            ticket.assignedToName = tech.fullName;
+            ticket.history.push({ fromStatus: ticket.status, toStatus: ticket.status, changedByUsername: actor.username,
+              note: `Phân công cho ${tech.fullName} (${tech.username}).${body.note ? ` Ghi chú: ${body.note}` : ''}`, changedAt: now() });
+          } else {
+            ticket.assignedToUserId = null;
+            ticket.assignedToName = null;
+            ticket.history.push({ fromStatus: ticket.status, toStatus: ticket.status, changedByUsername: actor.username,
+              note: `Hủy phân công.${body.note ? ` Ghi chú: ${body.note}` : ''}`, changedAt: now() });
+          }
+          ticket.updatedAt = now();
+          return response(detailRow(ticket));
+        }
+        if (action === 'status' && method === 'PATCH') {
+          if (actor.role !== 'Admin' && !(actor.role === 'Technician' && ticket.assignedToUserId === actor.id))
+            return fail('Chỉ quản trị viên hoặc kỹ thuật viên được giao mới được cập nhật trạng thái.', 403);
+          const flow: Record<string, string> = { Open: 'InProgress', InProgress: 'Resolved', Resolved: 'Closed' };
+          if (!flow[ticket.status] || flow[ticket.status] !== body.status) return fail('Chuyển trạng thái không hợp lệ.');
+          const resolution = String(body.resolution ?? '').trim();
+          if (body.status === 'Resolved' && !resolution) return fail('Vui lòng nhập kết quả xử lý.');
+          ticket.history.push({ fromStatus: ticket.status, toStatus: body.status, changedByUsername: actor.username,
+            note: body.note ? String(body.note).trim() || null : null, changedAt: now() });
+          ticket.status = body.status; ticket.updatedAt = now();
+          if (body.status === 'Resolved') { ticket.resolution = resolution; ticket.resolvedAt = now(); }
+          return response(detailRow(ticket));
+        }
+      }
+      return fail('Thao tác ticket chưa được hỗ trợ trong demo.', 400);
+    }
     if (actor.role !== 'Admin') return fail('Chức năng dành cho quản trị viên.', 403);
     if (path === '/dashboard') return response({ users: users.length, assets: assets.length, assignedAssets: assets.filter(a => a.status === 'Assigned').length, agents: agents.length, profiles: profiles.length });
     if (path === '/users' && method === 'GET') return response(page(users, url));
@@ -152,6 +284,30 @@ export function createDemoFetch(): typeof fetch {
     }
     if (path === '/assets/search') return response(page(assets.filter(a => !url.searchParams.get('status') || a.status === url.searchParams.get('status')), url));
     if (path === '/assets' && method === 'GET') return response(assets);
+    if (path === '/assets/software/bulk' && method === 'POST') {
+      const ids = body.assetIds as string[], inputs = body.software as Software[];
+      if (!Array.isArray(ids) || ids.length < 1 || ids.length > 50 || new Set(ids).size !== ids.length ||
+          !Array.isArray(inputs) || !inputs.length || inputs.length > 200 || inputs.some(s => !s?.name?.trim() || !['App', 'Service'].includes(s.kind ?? '') || s.id))
+        return fail('Danh sách máy hoặc phần mềm không hợp lệ.');
+      const machines = [];
+      const updates = new Map<string, Software[]>();
+      for (const id of ids) {
+        const asset = assets.find(a => a.id === id);
+        if (!asset) return fail('Không tìm thấy tài sản.', 404);
+        const software = [...information(asset).software];
+        let added = 0;
+        for (const input of inputs) {
+          const name = input.name.trim();
+          if (software.some(s => s.kind === input.kind && s.name.trim().toLowerCase() === name.toLowerCase())) continue;
+          software.push({ ...input, id: uid(), name }); added++;
+        }
+        if (software.length > 200) return fail('Máy vượt giới hạn 200 phần mềm.');
+        if (added) updates.set(id, software);
+        machines.push({ assetId: id, assetName: asset.name, added, skipped: inputs.length - added });
+      }
+      for (const [id, software] of updates) specifications.set(id, { ...specifications.get(id), software, revision: uid() });
+      return response({ machines, added: machines.reduce((n, m) => n + m.added, 0), skipped: machines.reduce((n, m) => n + m.skipped, 0) });
+    }
     if (path === '/assets' && method === 'POST') {
       if (!body.assetCode?.trim() || assets.some(a => a.assetCode.toLowerCase() === body.assetCode.toLowerCase())) return fail('Mã tài sản không hợp lệ hoặc đã tồn tại.');
       const asset: AssetResponse = { id: uid(), assetCode: body.assetCode, name: body.name, type: body.type ?? 'Desktop', status: 'Available', serialNumber: body.serialNumber ?? '', manufacturer: body.manufacturer ?? '', model: body.model ?? '', location: body.location ?? '', notes: body.notes ?? '', createdAt: now(), updatedAt: null };
@@ -163,7 +319,13 @@ export function createDemoFetch(): typeof fetch {
       if (!asset) return fail('Không tìm thấy tài sản.', 404);
       if (!action) { if (method === 'PUT') Object.assign(asset, body, { updatedAt: now() }); return response(asset); }
       if (action === 'specification') {
-        if (method === 'PUT') specifications.set(id, body);
+        if (method === 'PUT') {
+          const current = information(asset);
+          if ((body.revision ?? '0') !== current.revision) return fail('Cấu hình đã thay đổi. Vui lòng tải lại.', 409);
+          const software = (body.software ?? []) as Software[];
+          if (software.some(s => s.id && !current.software.some(existing => existing.id === s.id))) return fail('Phần mềm đã thay đổi.', 409);
+          specifications.set(id, { ...body, revision: uid(), software: software.map(s => ({ ...s, id: s.id ?? uid() })) });
+        }
         return response(information(asset));
       }
       if (action === 'access') {

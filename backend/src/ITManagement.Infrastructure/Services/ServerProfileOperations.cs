@@ -127,10 +127,23 @@ public sealed partial class ProfileOperationService
             AgentId = Guid.Empty, Kind = request.Kind, State = "Completed", RequestHash = hash, CreatedAt = Now, ExpiresAt = Now, CompletedAt = Now };
         db.ProfileOperations.Add(op);
         if (request.Kind is not ("list" or "read" or "ensure"))
-            db.AppAuditEvents.Add(new AppAuditEvent { ActorId = userId, Action = "ServerFile" + request.Kind, ResourceId = op.Id, CreatedAt = Now });
+            db.AppAuditEvents.Add(new AppAuditEvent { ActorId = userId, Action = AuditAction(request.Kind), ResourceId = op.Id, CreatedAt = Now });
         await db.SaveChangesAsync(ct);
         var result = await BuildSnapshotAsync(session, profile, user, asset, content, ct);
         await tx.CommitAsync(ct);
         return result;
     }
+
+    /// <summary>Đặt tên sự kiện nhật ký thống nhất PascalCase để Admin lọc và hiển thị nhãn tiếng Việt.</summary>
+    private static string AuditAction(string kind) => kind switch
+    {
+        "create" => "ServerFileCreate",
+        "write" => "ServerFileWrite",
+        "rename" => "ServerFileRename",
+        "move" => "ServerFileMove",
+        "copy" => "ServerFileCopy",
+        "delete" => "ServerFileDelete",
+        "restore" => "ServerFileRestore",
+        _ => "ServerFile" + kind
+    };
 }

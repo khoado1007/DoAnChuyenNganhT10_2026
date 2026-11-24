@@ -1,5 +1,5 @@
 import type { UserRole } from './types/auth';
-export type AdminSection = 'overview' | 'users' | 'assets' | 'agents' | 'quotas' | 'tickets';
+export type AdminSection = 'overview' | 'users' | 'assets' | 'agents' | 'quotas' | 'tickets' | 'audit-log' | 'files-admin';
 export type Route = { kind: 'admin'; section: AdminSection } | { kind: 'portal' | 'forbidden' | 'not-found' };
 export const anonymousLandingPath = '/employee';
 export const isMachinePath = (path: string) => ['/', '/employee', '/employee/', '/machines'].includes(path) || path.startsWith('/machines/');
@@ -20,9 +20,9 @@ export function resolveRoute(path: string, role: UserRole): Route {
   const group = segments[0];
   if (!['admin', 'employee', 'technician'].includes(group)) return { kind: 'not-found' };
   if ('/' + group !== homeForRole(role)) return { kind: 'forbidden' };
-  if (role !== 'Admin') return { kind: segments.length === 1 ? 'portal' : 'not-found' };
+  if (role !== 'Admin') return { kind: segments.length === 1 || (segments.length === 2 && segments[1] === 'tickets') ? 'portal' : 'not-found' };
   const section = segments[1] || 'overview';
-  if (segments.length > 2 || !['overview', 'users', 'assets', 'agents', 'quotas', 'tickets'].includes(section)) return { kind: 'not-found' };
+  if (segments.length > 2 || !['overview', 'users', 'assets', 'agents', 'quotas', 'tickets', 'audit-log', 'files-admin'].includes(section)) return { kind: 'not-found' };
   return { kind: 'admin', section: section as AdminSection };
 }
 

@@ -114,7 +114,6 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         var session = new DeviceSession { AssetId = assetId, UserId = userId, ProfileId = profile.Id,
             SecurityVersion = user.SecurityVersion, ExpiresAt = Now.AddHours(8) };
         db.DeviceSessions.Add(session);
-        Audit("DeviceSessionStarted", session.Id);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return new(session.Id, asset.Id, profile.Id, "COMPANY\\" + user.Username, asset.Name, session.ExpiresAt);
@@ -130,7 +129,6 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         var session = await db.DeviceSessions.SingleAsync(x => x.Id == sessionId, ct);
         if (session.EndedAt != null) throw Forbidden();
         session.EndedAt = Now;
-        Audit("DeviceSessionEnded", session.Id);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }

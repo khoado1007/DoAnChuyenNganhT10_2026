@@ -10,8 +10,18 @@ namespace ITManagement.API.Controllers;
 /// <summary>Khởi tạo controller xác thực và truy vấn phiên người dùng.</summary>
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService auth) : ControllerBase
+public sealed class AuthController(IAuthService auth, IPasswordPolicyService passwords) : ControllerBase
 {
+    [Authorize(Roles = "Employee"), HttpGet("password-policy")]
+    public async Task<IActionResult> PasswordPolicy(CancellationToken ct)
+        => Ok(ApiResponse<PasswordPolicyResponse>.Ok(await passwords.GetAsync(ct)));
+
+    [Authorize(Roles = "Employee"), HttpPost("password-reminder"), RequestSizeLimit(1024)]
+    public async Task<IActionResult> PasswordReminder(PasswordReminderRequest request, CancellationToken ct)
+    {
+        await passwords.AcknowledgeAsync(request.Day, ct);
+        return Ok(ApiResponse<object>.Ok(new { acknowledged = true }));
+    }
     /// <summary>Xác thực thông tin đăng nhập và tạo phiên người dùng.</summary>
     [AllowAnonymous]
     [HttpPost("login")]
@@ -23,4 +33,13 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
     [HttpGet("me")]
     public async Task<ActionResult<ApiResponse<UserResponse>>> Me(CancellationToken ct)
         => Ok(ApiResponse<UserResponse>.Ok(await auth.GetCurrentUserAsync(ct)));
+
+    [Authorize(Roles = "Employee")]
+    [HttpPost("change-password")]
+    [RequestSizeLimit(8192)]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken ct)
+    {
+        await auth.ChangePasswordAsync(request, ct);
+        return Ok(ApiResponse<object>.Ok(new { changed = true }));
+    }
 }

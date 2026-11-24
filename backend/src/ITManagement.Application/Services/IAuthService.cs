@@ -9,4 +9,5 @@ public interface IAuthService
     Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct = default);
     /// <summary>Lấy thông tin người dùng hiện đang đăng nhập.</summary>
     Task<UserResponse> GetCurrentUserAsync(CancellationToken ct = default);
+    Task ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default);
 }

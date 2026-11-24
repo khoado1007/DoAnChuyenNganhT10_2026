@@ -51,6 +51,8 @@ public static class DependencyInjection
         // Services
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IPasswordPolicyService, PasswordPolicyService>();
+        services.AddHostedService<PasswordExpiryWorker>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IAssetService, AssetService>();
         services.AddScoped<IMachineInformationService, MachineInformationService>();
@@ -61,6 +63,8 @@ public static class DependencyInjection
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IFileService, FileService>();
         services.AddScoped<IStorageAdminService, StorageAdminService>();
+        services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<ITicketService, TicketService>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
 

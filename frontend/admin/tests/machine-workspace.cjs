@@ -11,7 +11,7 @@ const base = process.env.UI_BASE_URL || 'http://127.0.0.1:5173';
     const session = { sessionId: 'fixture-session', deviceId: 'pc-1', profileId: 'profile-1', domainId: 'COMPANY\\fixture', deviceName: 'Máy kiểm thử' };
     const user = { id: 'fixture', username: 'fixture', fullName: 'Test', role: 'Employee', status: 'Active' };
     const profile = { ...session, quota: { maxFiles: 10, usedFiles: 0, reservedFiles: 0, remainingFiles: 10, overQuota: false }, files: [] };
-    const info = { assetId: 'pc-1', name: session.deviceName, assetCode: 'PC-001', status: 'simulated', memoryGb: 16, diskTotalGb: 512, diskFreeGb: 256, processor: 'Intel Core i5 · mô phỏng', diskEncryption: true, operatingSystem: 'Windows mô phỏng', software: Array.from({ length: 12 }, (_, index) => ({ name: `Software ${index + 1}`, version: '1.0', filePath: `C:\\Demo\\app${index + 1}.exe` })) };
+    const info = { revision: 'fixture-r1', assetId: 'pc-1', name: session.deviceName, assetCode: 'PC-001', status: 'simulated', memoryGb: 16, diskTotalGb: 512, diskFreeGb: 256, processor: 'Intel Core i5 · mô phỏng', diskEncryption: true, operatingSystem: 'Windows mô phỏng', software: Array.from({ length: 12 }, (_, index) => ({ id: 'fixture-' + index, name: `Software ${index + 1}`, version: '1.0', filePath: `C:\\Demo\\app${index + 1}.exe` })) };
     let logins = 0, informationCalls = 0, savedSpecification = null, denyInformation = false;
     await page.route(base + '/api/**', route => {
       const path = new URL(route.request().url()).pathname;
@@ -52,6 +52,7 @@ const base = process.env.UI_BASE_URL || 'http://127.0.0.1:5173';
     await page.getByLabel('Tìm phần mềm').fill('Software 12');
     await page.getByText('Software 12', { exact: true }).waitFor();
     assert.equal(await page.locator('a[href^="C:"]').count(), 0);
+    assert.equal(await page.getByText('Đường dẫn (chỉ hiển thị)').count(), 0);
     await page.getByRole('tab', { name: 'Desktop / Documents', exact: true }).click();
     await page.getByRole('button', { name: 'Tạo TXT/CSV' }).waitFor();
     await page.reload();

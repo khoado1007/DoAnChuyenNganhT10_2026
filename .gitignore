@@ -45,3 +45,16 @@ agent/state/
 
 # Handoff progress file
 !/TIEN_DO_DO_AN.md
+
+# Current implementation plans and local acceptance artifacts
+!/docs/
+/docs/*
+!/docs/PLAN_PASSWORD_SOFTWARE.md
+!/docs/EMPLOYEE_ACCOUNT_PLAN.md
+/artifacts/employee-account/
+/artifacts/employee-account-ui/
+/artifacts/acl-diagnostics/
+/artifacts/admin-audit-ui/
+/artifacts/ticket-ui/
+/artifacts/managed-software/
+/artifacts/managed-software-backend/

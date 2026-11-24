@@ -19,6 +19,45 @@ function client(fetcher) {
   };
 }
 
+test('demo bulk software skips duplicate name and kind and preserves configuration', async () => {
+  const fetcher = createDemoFetch(), admin = client(fetcher), employee = client(fetcher);
+  await admin.login('admin'); await employee.login('khoa');
+  const first = await admin.call('/assets/pc-001/specification', { operatingSystem: 'Keep OS', software: [{ name: 'Editor', kind: 'App', version: 'old', filePath: 'private' }] }, 'PUT');
+  const payload = { assetIds: ['pc-001', 'pc-002'], software: [{ name: ' editor ', kind: 'App', version: 'new' }, { name: 'Backup', kind: 'Service' }] };
+  assert.equal((await employee.call('/assets/software/bulk', payload)).status, 403);
+  const result = await admin.call('/assets/software/bulk', payload);
+  assert.equal(result.status, 200);
+  assert.equal(result.data.added, 3); assert.equal(result.data.skipped, 1);
+  const current = (await admin.call('/assets/pc-001/specification')).data;
+  assert.equal(current.operatingSystem, 'Keep OS');
+  assert.equal(current.software[0].id, first.data.software[0].id);
+  assert.equal(current.software[0].version, 'old');
+  assert.equal((await admin.call('/assets/pc-001/specification', { ...first.data, software: [] }, 'PUT')).status, 409);
+  assert.equal((await admin.call('/assets/software/bulk', { ...payload, assetIds: ['pc-001', 'missing'] })).status, 404);
+  assert.equal((await admin.call('/assets/pc-001/specification')).data.software.length, 2);
+});
+
+test('demo scoped software approval keeps employee session and quota without exposing paths', async () => {
+  const fetcher = createDemoFetch(), admin = client(fetcher), employee = client(fetcher);
+  await admin.login('admin'); await employee.login('khoa');
+  const spec = (await admin.call('/assets/pc-001/specification', { software: [{ name: 'Editor', kind: 'App', filePath: 'private' }] }, 'PUT')).data;
+  const session = (await employee.call('/machines/pc-001/sessions', {})).data;
+  const before = (await employee.call('/machines/pc-001/profile', null, 'GET', session.sessionId)).data;
+  const info = (await employee.call('/machines/pc-001/information', null, 'GET', session.sessionId)).data;
+  assert.equal(info.software[0].filePath, null);
+  const path = `/machines/pc-001/software/${spec.software[0].id}/remove`;
+  const body = { adminUsername: 'admin', adminPassword: 'Demo@12345', revision: spec.revision };
+  assert.equal((await employee.call(path, body, 'POST', 'wrong-session')).status, 403);
+  assert.equal((await employee.call(path, { ...body, adminPassword: 'wrong' }, 'POST', session.sessionId)).status, 403);
+  assert.equal((await employee.call(path, { ...body, revision: 'old' }, 'POST', session.sessionId)).status, 409);
+  assert.equal((await employee.call(path, body, 'POST', session.sessionId)).status, 200);
+  const after = (await employee.call('/machines/pc-001/profile', null, 'GET', session.sessionId)).data;
+  assert.deepEqual(after.quota, before.quota);
+  assert.equal((await employee.call('/auth/me')).data.role, 'Employee');
+  assert.equal((await employee.call('/machines/pc-001/information', null, 'GET', session.sessionId)).data.software.length, 0);
+  assert.equal((await employee.call(path, body, 'POST', session.sessionId)).status, 409);
+});
+
 test('demo active employees use any active computer and see session-bound simulated specifications', async () => {
   const fetcher = createDemoFetch(), employee = client(fetcher), admin = client(fetcher);
   await employee.login('khoa'); await admin.login('admin');

@@ -12,6 +12,10 @@ namespace ITManagement.Domain.Entities.User;
 public class AppUser : BaseEntity
 {
     public int SecurityVersion { get; set; }
+    public bool RequiresPasswordChange { get; set; }
+    public DateTime? PasswordFirstLoginAt { get; set; }
+    public int PasswordReminderDay { get; set; }
+    public bool PasswordExpiredLock { get; set; }
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;

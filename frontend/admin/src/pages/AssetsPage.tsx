@@ -1,6 +1,7 @@
 import { isDemoMode } from '../demo/mode';
 import SpecificationModal from './SpecificationModal';
 import AssignmentModal from './AssignmentModal';
+import BulkSoftwareModal from './BulkSoftwareModal';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -22,6 +23,7 @@ type Values = Omit<AssetResponse, 'id' | 'createdAt' | 'updatedAt'>;
 export default function AssetsPage() {
   const [access,setAccess] = useState<string | null>(null);
   const [allocation, setAllocation] = useState<AssetResponse | null>(null);
+  const [bulkSoftwareOpen, setBulkSoftwareOpen] = useState(false);
   const [data, setData] = useState<PagedResult<AssetResponse> | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -69,7 +71,7 @@ export default function AssetsPage() {
     { title: 'Thao tác', key: 'actions', render: (_: unknown, row: AssetResponse) => <Space wrap><Button onClick={() => show(row)}>Chi tiết / sửa</Button><Button onClick={() => setAccess(row.id)}>Cấu hình mô phỏng</Button><Button onClick={() => setAllocation(row)}>Bàn giao / lịch sử</Button></Space> },
   ];
   return <main className="page-content">
-    <div className="page-heading"><div><Typography.Title level={1}>Tài sản</Typography.Title><Typography.Text>Danh mục thiết bị · {isDemoMode ? 'Dữ liệu demo' : 'Dữ liệu từ máy chủ'}</Typography.Text></div><Button type="primary" onClick={() => show(null)}>Thêm tài sản</Button></div>
+    <div className="page-heading"><div><Typography.Title level={1}>Tài sản</Typography.Title><Typography.Text>Danh mục thiết bị · {isDemoMode ? 'Dữ liệu demo' : 'Dữ liệu từ máy chủ'}</Typography.Text></div><Space wrap><Button onClick={() => setBulkSoftwareOpen(true)}>Thêm phần mềm hàng loạt</Button><Button type="primary" onClick={() => show(null)}>Thêm tài sản</Button></Space></div>
     {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
     <Space wrap style={{ marginBottom: 16 }}>
       <Input.Search aria-label="Tìm tài sản" placeholder="Mã, tên, serial" maxLength={100} allowClear onSearch={value => { setSearch(value); setPage(1); }} />
@@ -78,6 +80,7 @@ export default function AssetsPage() {
     </Space>
     <Table<AssetResponse> columns={columns} rowKey="id" dataSource={data?.items ?? []} loading={loading} scroll={{ x: 950 }} pagination={{ current: page, pageSize: 10, total: data?.totalCount ?? 0, showSizeChanger: false, onChange: setPage }} locale={{ emptyText: 'Chưa có tài sản phù hợp' }} />
     {access && <SpecificationModal assetId={access} onClose={() => setAccess(null)} />}
+    {bulkSoftwareOpen && <BulkSoftwareModal onClose={() => setBulkSoftwareOpen(false)} />}
     {allocation && <AssignmentModal asset={data?.items.find(row => row.id === allocation.id) ?? allocation} onClose={() => setAllocation(null)} onChanged={() => setRevision(value => value + 1)} />}
     <Modal title={editing ? `Chi tiết ${editing.assetCode}` : 'Thêm tài sản'} open={open} footer={null} destroyOnClose onCancel={() => { if (!saving) setOpen(false); }}>
       {modalError && <Alert type="error" showIcon message={modalError} style={{ marginBottom: 12 }} />}

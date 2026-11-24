@@ -30,6 +30,8 @@ public sealed class MachineInformationTests(ServerApiFactory factory) : IClassFi
                 lastUsedAt = "2026-11-15T11:00:00Z", filePath = @"C:\Apps\Editor.exe" } }
         };
         await Data(await admin.PutAsJsonAsync($"/api/assets/{assetId}/specification", request));
+        var adminSpec = await Data(await admin.GetAsync($"/api/assets/{assetId}/specification"));
+        Assert.Equal(@"C:\Apps\Editor.exe", adminSpec.GetProperty("software")[0].GetProperty("filePath").GetString());
         using var employee = await Employee(admin);
         using var otherEmployee = await Employee(admin);
         Assert.Equal(HttpStatusCode.Forbidden, (await employee.GetAsync($"/api/assets/{assetId}/specification")).StatusCode);
@@ -44,6 +46,7 @@ public sealed class MachineInformationTests(ServerApiFactory factory) : IClassFi
         Assert.Equal(16.5m, info.GetProperty("memoryGb").GetDecimal());
         Assert.Equal(123.25m, info.GetProperty("diskFreeGb").GetDecimal());
         Assert.Equal("Editor", info.GetProperty("software")[0].GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Null, info.GetProperty("software")[0].GetProperty("filePath").ValueKind);
         Assert.Equal(JsonValueKind.String, info.GetProperty("updatedAt").ValueKind);
         Assert.Equal("2026-11-15T10:00:00Z", info.GetProperty("lastRestartedAt").GetString());
         Assert.EndsWith("Z", info.GetProperty("updatedAt").GetString());

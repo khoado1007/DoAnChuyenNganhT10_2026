@@ -1,12 +1,18 @@
 # Tiến độ và bàn giao đồ án IT Management
 
-**Cập nhật gần nhất:** 17/11/2026 — giờ Việt Nam.
+**Cập nhật gần nhất:** 24/11/2026 — giờ Việt Nam.
+**Mốc hiện tại — danh mục App/Service:** Đã nối thêm hàng loạt cho một hoặc nhiều máy và xác nhận xóa ngay trên máy nhân viên. Mục trùng tên và phân loại trên cùng máy được bỏ qua, giữ nguyên thông tin cũ. Đã nghiệm thu 118/118 backend, 40/40 frontend, build frontend và 3 kịch bản Edge. Bước tiếp theo là chuyển file Agent cũ khi có thư mục nguồn.
+**Mốc 23/11 (đêm) — Bảo mật đường dẫn App/Service:** Employee xem danh sách phần mềm (Tên, Phiên bản, Phân loại, Lỗ hổng, Lần dùng gần nhất) nhưng `FilePath` bị loại bỏ (null) ở tầng API `GET /api/machines/{id}/information` và ẩn hoàn toàn cột đường dẫn trên giao diện `MachineWorkspace.tsx`. Admin vẫn giữ đầy đủ `FilePath` qua `GET /api/assets/{id}/specification` và modal Cấu hình mô phỏng. Backend **108/108 PASS**, frontend **38/38 PASS**, frontend build PASS, browser smoke `machine-workspace.cjs` PASS (xác minh không còn cột `Đường dẫn (chỉ hiển thị)`).
+**Mốc 23/11 (tối) — Ticket cơ bản:** Employee gửi và theo dõi yêu cầu tại `/employee/tickets`; Admin xử lý tại `/admin/tickets`. Luồng `Open → InProgress → Resolved → Closed`, comment công khai/ghi chú nội bộ; Employee chỉ thấy ticket của mình, Admin thấy tất cả, Technician (chưa có UI theo quyết định user) chỉ thấy ticket được giao ở tầng API. Backend **108/108 PASS**, frontend **38/38 PASS**, build PASS, browser smoke PASS và E2E thật PASS trên database GUID riêng (đã xóa sau kiểm thử).
+**Mốc 23/11 (chiều) — nghiệm thu 2 trang Admin + thu hẹp phạm vi nhật ký:** đã kiểm tra 2 trang `/admin/audit-log` và `/admin/files-admin` bằng trình duyệt (Edge/Playwright) đạt; thu hẹp API nhật ký về đúng 7 thao tác file, chuẩn hóa dữ liệu cũ, giữ nguyên toàn bộ sự kiện lịch sử trong DB. Backend **103/103 PASS**, frontend **33/33 PASS**, build PASS.
+**Mốc 22/11 — nghiệm thu nhật ký + metadata file cho Admin:** thêm `AuditAdminTests` (4 ca) cho API `/api/admin/audit-log` và `/api/admin/files`; phát hiện và sửa tên sự kiện `ServerFilecreate` → `ServerFileCreate` (nhãn UI trước đó không khớp). Backend **102/102 PASS**, frontend **32/32 PASS**, build backend 0 warning/0 error, build frontend PASS.
+**Mốc 18/11 — khôi phục môi trường frontend:** đã khắc phục dependency cục bộ bị thiếu/cắt, `npm test` đạt 32/32 và `npm run build` đạt PASS; Playwright không thuộc manifest npm hiện tại nên smoke `.cjs` chưa chạy trong mốc này.
 **Workspace đúng:** `D:\DoAnChuyenNganhT10_2026` (đường dẫn cũ `D:\DoAnChuyenNganh` không tồn tại).
-**Điểm tiếp tục:** ĐÃ hoàn tất luồng mô phỏng web không Agent: Employee active dùng mọi máy active, chọn máy trước login, thông tin/phần mềm chỉ đọc và file riêng người–máy trên server. Backend96/96, frontend32/32, E2E SQL/API/Edge không Agent9/9, buildPASS. Đã backup/verify và áp dụng ServerSimulation + SeparateServerAndAgentProfiles; API5038/UI5173 đang chạy. 5 tài sản,4profile Agent,1file cũ giữ nguyên; server tạo profile riêng nên không chặn login. User chọn chuyển file cũ SAU. Đã dọn hướng dẫn legacy và chốt kế hoạch mục5–6. Bước tiếp: Nhật ký Admin chỉ đọc trước, metadata sau; không tự chuyển/xóa dữ liệu Agent cũ.
+**Bàn giao cũ (23/11 đêm):** Bảo mật đường dẫn App/Service và Ticket cơ bản đã xong; UI/portal Kỹ thuật viên và phân công ticket vẫn tạm hoãn vì phạm vi lớn (chỉ mở khi user yêu cầu). Việc còn lại là chuyển file Agent cũ khi có nguồn, và chỉ mở Ticket nâng cao (SLA/đính kèm/phân công/Technician) khi user chốt. Vẫn giữ main, không merge `feature/admin-audit`. Ngày19/11 đã sửa PasswordReminder.tsx bị thiếu, npm manifest frontend chứa save-dev sai thành wrapper chạy admin và lockfile tương ứng. Vòng đời mật khẩu đã nối đủ API/UI: default/reset12345Az@; lần đầu/ngày5–6–7; khóa7ngày; bật lại giữ mật khẩu + chu kỳ mới từ login tiếp theo. Migration20261118024440_PasswordLifecycle đã backup/verify và áp dụng thật,6tài khoản giữ nguyên, không ép đổi tài khoản cũ. API5038/UI5173 đã chạy, Swagger policy có, proxy machines200. Không commit/push.
 
 ## 1. Cách dùng file này
 
-**Bổ sung yêu cầu 18/11:** Employee chưa có trang **Thông tin tài khoản** để tự đổi mật khẩu. Đã ghi vào bước vòng đời mật khẩu trong `docs/PLAN_PASSWORD_SOFTWARE.md`: thêm điểm truy cập từ khu vực Employee, xem thông tin tài khoản và chủ động đổi mật khẩu ngoài popup nhắc. Hiện chỉ ghi kế hoạch, chưa triển khai; chưa mở rộng sang sửa hồ sơ cá nhân.
+**Bổ sung yêu cầu 18/11:** Employee chưa có trang **Thông tin tài khoản** để tự đổi mật khẩu. Đã ghi vào bước vòng đời mật khẩu trong `docs/PLAN_PASSWORD_SOFTWARE.md`: thêm điểm truy cập từ khu vực Employee, xem thông tin tài khoản và chủ động đổi mật khẩu ngoài popup nhắc. Đã triển khai hộp thoại thông tin + tự đổi mật khẩu trên main ngày18/11; chưa mở rộng sang sửa hồ sơ cá nhân.
 
 Theo yêu cầu của người dùng, đây là file bàn giao khi phiên làm việc gần hết giới hạn, không phải báo cáo tự động hằng ngày.
 
@@ -96,9 +102,11 @@ Database test dùng tiền tố `itmanagement_test_` hoặc `itam_dashboard_test
 
 | Ưu tiên | Phần việc | Trạng thái |
 | --- | --- | --- |
-| Tiếp theo | Nhật ký tổng hợp và metadata file cho Admin | User đã đồng ý phạm vi chỉ đọc: lọc theo thời gian/người/thao tác, xem tên/dung lượng/chủ sở hữu/máy; không đọc nội dung file |
-| Sau nhật ký | Ticket cơ bản | Chưa có luồng hoàn chỉnh; cần chốt trạng thái và cách phân công trước khi triển khai |
-| Chờ user | Chuyển file Agent cũ | User chọn giữ nguyên, chuyển sau; cần đúng thư mục nguồn, không tự dò/copy/xóa dữ liệu |
+| Đã nghiệm thu | Bảo mật đường dẫn App/Service | **23/11 đêm**: Employee không nhận `FilePath` qua API/UI; Admin xem/sửa đầy đủ. 108 backend test PASS, browser smoke PASS |
+| Đã nghiệm thu | Nhật ký tổng hợp và metadata file cho Admin | **23/11**: API + 2 trang Admin + browser smoke PASS; nhật ký chỉ 7 thao tác file, dữ liệu cũ giữ nguyên |
+| Đã nghiệm thu | Ticket cơ bản | **23/11 tối**: Employee gửi/theo dõi, Admin xử lý, comment nội bộ; 108 backend test, E2E thật PASS. Technician UI/phân công tạm hoãn |
+| Tiếp theo | Chuyển file Agent cũ | Chờ user cung cấp nguồn; không tự dò/copy/xóa dữ liệu |
+| Tạm hoãn | Ticket nâng cao (Technician, phân công, SLA, đính kèm) | Chỉ mở khi user yêu cầu; data model đã có `AssignedToUserId` nhưng chưa có UI |
 | Đã dọn tài liệu | Storage/Agent legacy | Hướng dẫn cũ ở legacy/README.md; API và dữ liệu giữ nguyên, chưa gộp hoặc loại bỏ |
 | Ngoài phạm vi hiện tại | Inventory thật / nhiều máy vật lý | Mô phỏng web không cần phần này; chỉ mở lại khi user yêu cầu |
 
@@ -106,10 +114,10 @@ Luồng mô phỏng server đã đạt: backend96/96, frontend32/32, E2E không 
 
 ## 6. Kế hoạch tiếp theo — làm từng mốc nhỏ
 
-1. **Nhật ký Admin trước:** API chỉ đọc có phân trang và lọc ngày/người/thao tác; lấy sự kiện đã có, thêm menu Nhật ký. Test401/403, bộ lọc, thứ tự và phân trang. Không trả token/nội dung file.
-2. **Metadata file sau:** bảng tên file, thư mục, dung lượng, tài khoản, máy và loại kho Server/Agent. Tách rõ dữ liệu cũ/mới, không có nút mở/tải file cá nhân cho Admin. Test ranh giới quyền và dữ liệu trống.
+1. **Nhật ký Admin trước:** API chỉ đọc có phân trang và lọc ngày/người/thao tác; lấy sự kiện đã có, thêm menu Nhật ký. Test401/403, bộ lọc, thứ tự và phân trang. Không trả token/nội dung file. → **Đã nghiệm thu 23/11**, xem nhật ký cuối file.
+2. **Metadata file sau:** bảng tên file, thư mục, dung lượng, tài khoản, máy và loại kho Server/Agent. Tách rõ dữ liệu cũ/mới, không có nút mở/tải file cá nhân cho Admin. Test ranh giới quyền và dữ liệu trống. → **Đã nghiệm thu 23/11** cùng mốc trên.
 3. **Nghiệm thu mỗi mốc:** test phần liên quan + build + kiểm tra browser, cập nhật file tiến độ rồi mới mở bước kế tiếp. Không làm cả Ticket khi gần hết giới hạn.
-4. **Ticket:** sau hai mốc trên, trao đổi nghiệp vụ gửi/nhận/phân công/đóng yêu cầu rồi triển khai.
+4. **Ticket cơ bản:** đã làm 23/11 tối theo lựa chọn user: Employee tạo, Admin xử lý, trạng thái rút gọn `Open → InProgress → Resolved → Closed`, có comment; Technician UI tạm hoãn. Không mở phân công/SLA/đính kèm khi chưa chốt.
 5. **File cũ:** chỉ chuyển khi người dùng cung cấp nguồn và yêu cầu; giữ nguyên bản gốc và backup.
 
 Dọn cache17/11 chưa thực hiện: lệnh xóa17 file cache (~179KiB) bị bộ kiểm soát tự động chặn theo chính sách. Không thử cách khác để vượt chặn. Không ảnh hưởng ứng dụng.
@@ -157,6 +165,10 @@ Dọn cache17/11 chưa thực hiện: lệnh xóa17 file cache (~179KiB) bị b�
 **Các file cập nhật:** `frontend/admin/src/main.tsx` (Ant Design theme), `src/styles.css`, `src/pages/LoginPage.tsx`, `src/layouts/AdminLayout.tsx`, `src/pages/PortalPage.tsx`, `frontend/admin/index.html` và tài nguyên trong `frontend/admin/public/brand/`.
 
 ## 7. Trạng thái bàn giao hiện tại
+
+**Hiện tại 23/11 (tối):** workspace chưa commit/push. Ticket cơ bản đã có API + UI Admin/Employee; Backend 108/108 PASS, frontend 38/38 PASS, build PASS; browser smoke fixture PASS và E2E thật PASS trên database GUID riêng đã xóa. Vite 5173 đang chạy; API test 5038 đã dừng. Technician UI tạm hoãn; không thêm dependency vào manifest. Hai trang Admin audit/metadata vẫn giữ kết quả nghiệm thu chiều 23/11.
+
+**Hiện tại 23/11 (chiều):** hai trang Admin `/admin/audit-log` và `/admin/files-admin` đã nghiệm thu bằng trình duyệt; API nhật ký chỉ trả 7 thao tác file, dữ liệu lịch sử khác vẫn nằm nguyên trong DB. Ticket khi đó còn tạm hoãn.
 
 **Hiện tại 16/11:** thay đổi trong workspace chưa commit/push; gồm Agent/API/UI đối soát, regression tests, bộ chạy live và tài liệu. Main API đã restart bằng binary mới, xác nhận Swagger có endpoint đối soát/nhật ký và `/api/machines`/UI trả200. Không còn test server5189/5190; không có Agent gắn vào dữ liệu nghiệp vụ. Các ghi chú12/11 phía dưới là lịch sử, trạng thái kết thúc mới nhất nằm ở nhật ký16/11.
 
@@ -380,3 +392,86 @@ Dọn cache17/11 chưa thực hiện: lệnh xóa17 file cache (~179KiB) bị b�
 - Cập nhật mục5–6 thành backlog và kế hoạch theo mốc nhỏ. Nhật ký/metadata đã được user đồng ý, không hỏi lại phạm vi này.
 - Chỉ sửa tài liệu. Không đổi API, schema, file người dùng, backup hoặc tiến trình đang chạy. Không chạy lại96 test vì không đổi code.
 - Cache17 file tổng183172bytes còn nguyên: automatic approval review từ chối lệnh Remove-Item với thông báo blocked by policy; không được cung cấp lý do chi tiết hơn.
+
+
+### 18/11/2026 — Employee xem tài khoản và đổi mật khẩu trên main
+- Đầu phiên phát hiện workspace sạch ở main0e221a5, trong khi tiến độ/chat trước thuộc feature/admin-audit. Đã hỏi và user chọn giữ main để phát triển. Không checkout/merge, không phục hồi resetAdmin/nhật ký/gỡAgent ngoài phạm vi.
+- Thêm EmployeeAccountModal, nút Thông tin tài khoản trong máy đã login. GET auth/me hiển thị hồ sơ readonly, loading/error/retry. Đóng modal giữ phiên/nội dung đang soạn; đang thao tác file thì không mở modal. Demo chỉ xem, không giả lập đổi password.
+- POST /api/auth/change-password chỉ Employee, DTO giới hạn độ dài/xác nhận. Khóa AppUser trong transaction, dùng Identity.ChangePasswordAsync kiểm tra mật khẩu hiện tại + policy, tăng SecurityVersion. JWT mọi tab và phiên máy cũ vô hiệu, tài khoản khác giữ nguyên. Không nhận userId từ client, không đổi schema. UI xóa token/tham chiếu phiên/nội dung cá nhân sau thành công và về login máy, hiện thông báo; phản hồi muộn không xóa token đăng nhập mới khác.
+- Test RED ban đầu404 thay vì401; sau triển khai auth/user/password12/12PASS trên SQL GUID riêng. Có anonymous/Admin, sai mật khẩu, không khớp, quá ngắn, trùng mật khẩu cũ, token/phiên cũ, đăng nhập mới. Frontend32/32PASS, UIbuildPASS (cảnh báo bundle>500kB cũ).
+- Browser employee-account.cjs PASS: tải hồ sơ lỗi/thử lại, xác nhận mật khẩu, API lỗi giữ phiên, thành công xóa phiên/vềlogin, mobile; đã xem ảnh artifacts/employee-account-ui/mobile.png. Lượt đầu không hiện Modal.success trên runtime hiện tại; thay bằng Alert trong trang login rồi chạy lại đạt.
+- Build output riêng artifacts/employee-account dùng cho testPASS. Build chính lần đầu lỗi cache bị tiến trình khác giữ; chạy lại tuần tự -m:1 đạt0warning/0error. Lệnh Start-Process chạy DLL riêng bị automatic approval review chặn với lý do chung blocked by policy; không chạy lệnh đó lại. Chạy dotnet run thông thường báo5038 đang được dùng. Kiểm tra listener đúng project API, Swagger đã có change-password, proxy/api/machinesHTTP200; giữ tiến trình đó, không tắt tiến trình của user. UI5173 chạy. Không tác động tài khoản thật khi kiểm thử.
+- Cập nhật README/phạm vi main, docs/EMPLOYEE_ACCOUNT_PLAN.md, docs/PLAN_PASSWORD_SOFTWARE.md; đưa hai plan vào ngoại lệ gitignore và bỏ qua artifact kiểm thử. git diff --checkPASS. Không commit/push.
+- Còn lại: resetAdmin trên main; mặc định12345Az@ khi tạo user; thông báo lần đầu sau tạo/reset, nhắc ngày5/6/7, hạn7ngày theo tài khoản và khóa; chốt gia hạn khi bật lại, định nghĩa ngày/tần suất nhắc. App/service, chỉAdminxempath, xóa cần popupAdmin chưa làm. Ticket tạm hoãn. Không coi thành công đổi mật khẩu chủ động là đã có toàn bộ vòng đời password.
+
+### 18/11/2026 — hoàn tất vòng đời mật khẩu trên main
+- Reset Admin đã được nối lại: nút xác nhận đặt `12345Az@`, tăng `SecurityVersion`, thu hồi JWT/phiên hiện tại và không tự mở tài khoản bị khóa.
+- Tạo user mặc định dùng `12345Az@`; chu kỳ bắt đầu khi Employee đăng nhập lần đầu sau tạo/reset. Policy lưu thời điểm đầu, mốc nhắc đã xác nhận và cờ khóa hết hạn trong AppUser/migration SQL Server mới.
+- Backend chặn request sau 7 ngày, worker quét định kỳ, Admin bật lại tài khoản khóa bằng chu kỳ mới ở lần login tiếp theo.
+- Kiểm tra: `PasswordLifecycleTests` + `EmployeePasswordTests` đạt **2/2**, frontend Node test đạt **32/32**, frontend build đạt. Browser smoke `password-lifecycle.cjs` đạt luồng nhắc 1/5/6/7, retry/skip/F5, đổi ngay, tạo user mặc định và reset.
+- Giới hạn: chạy smoke bằng route fixture Playwright, không khởi chạy hay đăng nhập vào database nghiệp vụ thật. API5038 không còn chạy ở lần kiểm tra cuối; UI5173 vẫn trả HTTP200.
+
+
+### 19/11/2026 — Rà soát file dựng sai, hoàn tất triển khai vòng đời mật khẩu
+- ỔD đã truy cập lại; workspace đúng D:/DoAnChuyenNganhT10_2026. Shell mặc định lỗi nên dùng Windows PowerShell hệ thống rõ đường dẫn.
+- Phát hiện MachinesPage import PasswordReminder nhưng file mất; khôi phục component và smoke password-lifecycle.cjs. Log PASS cũ không được coi là bằng chứng cho cây nguồn thiếu file. Đã chạy lại browser reminder: lần đầu,5/6/7, bỏqua/thửlại, F5, Đổi ngayPASS.
+- frontend/package.json đang chứa dependency save-dev (npm chạy nhầm thư mục), không phải ứng dụng. Đổi thành private wrapper dev/build/test chạy admin, tái tạo frontend/package-lock.json (0 dependency); không xóa node_modules hoặc dữ liệu của user. Build từ wrapperPASS; frontend32/32PASS.
+- Rà migration: chỉ thêm4cột AppUser, defaultfalse/null/0, không thay passwordhash của user cũ. EF trước đó ghi snapshot nhầm legacy; snapshot SQL hiện đúng và full98/98 đã đạt18/11. Giữ migration cũ, không drop/reseed.
+- Database thật trước mốc này CHƯA có4cột dù đầu tiến độ ghi hoàn tất. Đã backup COPY_ONLY/CHECKSUM + RESTORE VERIFYONLY: artifacts/backups/ITManagement-before-password-cycle-f3086674c5f64e29847013759cecc863.bak. Áp dụng20261118024440_PasswordLifecycle thành công;6user giữ nguyên, ExistingUsersForced=0. Không reset bất kỳ tài khoản thật nào.
+- API build0warning/0error; UIbuildPASS (bundlewarning cũ). Đã chạy API5038 bằng dotnetrun vớiInitializeOnStartup=false, UseAgent=false, đúng rootstorage cũ và namedpipeLocalDB hiện tại; UI5173 chạy. Swagger cópassword-policy, proxy/api/machinesHTTP200. Không sửaSQLinstance.
+- Chốt đúng: chu kỳ theo tài khoản từ login đầu, sau4/5/6ngày nhắc (ngày5/6/7), đủ7ngày khóa; bỏqua khônggia hạn; mở lại tài khoản khóa vìhết hạn giữ mật khẩu và chờlogin bắt đầu chu kỳmới. Worker mỗi phút + kiểm traJWT trước request. API tạo user giữ password tùychọn cho tương thích; AdminUI luôn dùng12345Az@.
+- File tiến độ/README/plan đã sửa trạng thái để không nhầm bản hoàn tất với code thiếu/migration chưaápdụng. Chưa merge phần gỡAgent/Nhậtký nhánhkhác. Không commit/push.
+
+### 22/11/2026 — nghiệm thu nhật ký + metadata file cho Admin (mốc nhỏ nhất còn lại)
+- Đầu phiên: shell bị chặn quyền ghi workspace (Windows từ chối đặt quyền). Đã chạy công cụ chẩn đoán quyền của DSH: thêm quyền toàn quyền cho tài khoản đăng nhập trên `D:\DoAnChuyenNganhT10_2026` (thiếu `WRITE_OWNER`), đã xác minh lại đạt; bản sao lưu và lệnh khôi phục ở `artifacts/acl-diagnostics/`.
+- Hiện trạng: API `GET /api/admin/audit-log`, `GET /api/admin/files` cùng 2 trang `Nhật ký thao tác`/`Metadata file` đã có trong cây nguồn nhưng **chưa có test và chưa nghiệm thu**. Vì vậy chọn đây làm phần nhỏ nhất: viết test rồi kiểm thử.
+- Thêm `backend/tests/ITManagement.IntegrationTests/AuditAdminTests.cs` (4 ca, dùng `ServerApiFactory`): 401 ẩn danh / 403 Employee / 200 Admin; sự kiện thật (`DeviceSessionStarted`, `ServerFileCreate`) lọc theo actor và action; thứ tự mới nhất trước, lọc `from`/`to`, lọc actor, phân trang `page=2&pageSize=1`, kẹp `pageSize` 1..200; metadata file có tên/thư mục/dung lượng/chủ sở hữu/máy/kho, không chứa `contentBase64`/`storageKey`/`password`/`token`; dữ liệu trống và bộ lọc không khớp trả trang rỗng.
+- Sửa lỗi thật phát hiện qua test: `ServerProfileOperations` ghi sự kiện dạng `"ServerFile" + kind` nên ra `ServerFilecreate` (chữ thường), không khớp nhãn tiếng Việt của UI. Đổi sang hàm `AuditAction(kind)` trả PascalCase (`ServerFileCreate/Write/Rename/Move/Copy/Delete/Restore`). Không đổi schema, không đổi dữ liệu cũ.
+- Đồng bộ `frontend/admin/src/pages/AuditLogPage.tsx`: bổ sung nhãn `ServerFileRename`, `DeviceAccessGranted`, `DeviceAccessRevoked`, `ProfileOperationCompleted`, đổi `QuotaUpdated` → `ProfileQuotaUpdated` (đúng tên backend ghi).
+- Kiểm thử: backend **102/102 PASS** (98 cũ + 4 mới) qua `dotnet test backend/ITManagement.slnx --artifacts-path artifacts/audit-milestone`; build 0 warning/0 error; frontend `npm test` **32/32 PASS**; `npm run build` PASS (chỉ còn cảnh báo chunk >500 kB cũ).
+- LocalDB đang ở trạng thái Stopped khi bắt đầu; chuỗi kết nối `(localdb)\MSSQLLocalDB` của bộ test tự khởi động instance. Database test dùng GUID riêng và đã bị xóa sau mỗi fixture; không chạm `ITManagement`.
+- Chưa làm trong mốc này: kiểm tra 2 trang mới bằng trình duyệt (máy không có module Playwright, không cài thêm), chưa nối thêm sự kiện cho các nghiệp vụ khác (tài sản/tài khoản) nên nhật ký hiện chỉ có sự kiện phiên máy, quyền máy, thao tác file server, quota và đối soát.
+- Không commit/push.
+
+### 23/11/2026 — hoàn tất nghiệm thu 2 trang Admin + thu hẹp phạm vi nhật ký
+- Kiểm tra lại cây nguồn: route `/admin/audit-log`, `/admin/files-admin` đã nối trong `routing.ts`, `AdminLayout.tsx`, `AdminPreviewPage.tsx`; 2 trang dùng hook chung `useAdminFilterOptions` (assets dạng mảng, users phân trang 100/trang) nên lỗi bộ lọc máy không còn làm trang trắng. `routing.test.mjs` có ca riêng cho deep link/F5 và ranh giới vai trò; frontend đạt 33/33.
+- Hoàn thiện phạm vi nhật ký: `AuditService` chỉ trả 7 thao tác file (`ServerFileCreate/Write/Rename/Move/Copy/Delete/Restore`), chuẩn hóa dữ liệu cũ (`ServerFilecreate` → `ServerFileCreate`) và so khớp không phân biệt hoa/thường; `from > to` trả 400. `ServerFileRead`, sự kiện phiên máy, quyền máy, quota, đối soát và dữ liệu lịch sử khác **vẫn giữ trong DB nhưng không trả qua API**; không xóa/sửa dữ liệu cũ.
+- Ngừng ghi thêm `DeviceSessionStarted/Ended` để nhật ký chỉ còn thao tác file; sự kiện `DeviceAccessGranted/Revoked` vẫn được ghi cho kiểm tra hồi quy cũ nhưng không hiện trong trang Admin. `CreatedAt` được chuẩn hóa UTC có hậu tố `Z` để UI hiển thị đúng giờ Việt Nam.
+- Cải thiện tên truy cập: thêm `aria-label` cho nút điều hướng Admin và nút Lọc/Đặt lại để kiểm thử trình duyệt và screen reader không phụ thuộc nhãn của icon.
+- Cài Playwright 1.62.1 cục bộ bằng `npm --prefix frontend/admin install --no-save --package-lock=false playwright@1.62.1` (không đổi `package.json`/lockfile ứng dụng). Chạy `node frontend/admin/tests/admin-audit-pages.cjs` với Vite 5173 và Edge headless: **PASS** — deep link/F5, tải lại bộ lọc lỗi, chọn máy, phân trang không áp dụng bộ lọc nháp, lọc tài khoản/máy/thư mục, rỗng/lỗi/thử lại, UTC, chuyển trang bằng menu, viewport 390, không pageerror. Ảnh: `artifacts/admin-audit-ui/audit-desktop.png`, `files-mobile.png`.
+- Kiểm thử: backend **103/103 PASS** (102 cũ + 1 ca phạm vi/legacy mới) qua `dotnet test backend/ITManagement.slnx --no-restore --artifacts-path artifacts/audit-scope`; frontend **33/33 PASS**; build frontend PASS (chỉ còn cảnh báo chunk >500 kB cũ); `git diff --check` PASS. LocalDB tự khởi động, database test GUID riêng, không chạm `ITManagement`.
+- Giới hạn: browser smoke dùng fixture API, không đăng nhập database nghiệp vụ; API 5038 không chạy trong lượt này nên nghiệm thu HTTP thật của 2 trang dựa vào integration test SQL. Playwright chỉ cài trong `node_modules`, không thêm dependency vào manifest.
+- Không commit/push.
+
+### 23/11/2026 (tối) — Ticket cơ bản: Employee gửi, Admin xử lý
+- User chốt: Ticket mở lại ngay; luồng Employee tạo → Admin xử lý; **Technician chưa phát triển UI** vì phạm vi lớn. Trạng thái rút gọn `Open → InProgress → Resolved → Closed` (không dùng Assigned/Cancelled); có comment; Employee chỉ thấy ticket mình tạo, Admin thấy tất cả, Technician thấy ticket được giao ở tầng API.
+- API mới: `GET /api/tickets` (lọc search/status/category/priority, phân trang), `POST /api/tickets` (Employee), `GET /api/tickets/{id}`, `PATCH /api/tickets/{id}/status` (Admin, kiểm tra luồng + bắt buộc kết quả khi Resolved), `POST /api/tickets/{id}/comments` (công khai; ghi chú nội bộ chỉ Admin/Technician). Mã ticket `TKT-{năm}-{sequence:D4}` dùng sequence SQL có sẵn; history lưu mỗi lần chuyển trạng thái. Không thêm migration/schema.
+- UI Admin: menu **Yêu cầu hỗ trợ** tại `/admin/tickets`; bảng lọc/tìm, chi tiết, trao đổi, ghi chú nội bộ, nút Bắt đầu xử lý → Hoàn tất xử lý (nhập kết quả) → Đóng ticket. UI Employee: `/employee/tickets` (mở từ nút trên màn hình máy) để gửi ticket, xem trạng thái/kết quả và trao đổi; chỉ hiển thị ticket của mình và bỏ ghi chú nội bộ.
+- Route `/employee/tickets` và `/technician/tickets` được thêm vào `routing.ts` (deep link/F5, giữ ranh giới vai trò); link vào cổng ticket đặt ở header màn hình chọn máy. Demo server có ticket mẫu và xử lý được luồng ticket để trình diễn offline.
+- Kiểm thử: backend **108/108 PASS** (103 cũ + 5 `TicketTests`) qua `dotnet test backend/ITManagement.slnx --no-restore --artifacts-path artifacts/audit-scope`; frontend **38/38 PASS** (33 cũ + 5 test helper/routing); build frontend PASS (chỉ còn cảnh báo chunk >500 kB cũ).
+- Browser smoke fixture `node frontend/admin/tests/tickets.cjs`: **PASS 2 lần** — lọc, chi tiết, comment nội bộ, chuyển trạng thái, tạo ticket/comment phía Employee, dữ liệu tách theo người, viewport 390, không pageerror. Ảnh: `artifacts/ticket-ui/admin-tickets.png`, `employee-tickets-mobile.png`. Chế độ demo `?demo=1` cũng PASS: Admin xem ticket mẫu, Employee tạo ticket mới.
+- E2E thật `node frontend/admin/tests/tickets-live.cjs` với API 5038 + database GUID riêng + Vite 5173: **PASS** cả hai vai trò — tạo user, Employee đăng nhập/tạo ticket/comment, Admin đăng nhập/lọc/thêm ghi chú nội bộ/chuyển InProgress→Resolved/reload giữ kết quả. Ảnh `artifacts/ticket-ui/admin-live.png`. Đã dừng API test và drop đúng database GUID; không chạm `ITManagement`.
+- Giới hạn: Technician chưa có UI/phân công; chưa có SLA, đính kèm, thông báo, email hay ticket theo tài sản. Browser smoke fixture và E2E dùng dữ liệu test; tài khoản/dữ liệu nghiệp vụ không bị thay đổi.
+- Không commit/push.
+
+### 23/11/2026 (đêm) — Bảo mật đường dẫn App/Service (Employee không thấy FilePath)
+- Theo yêu cầu mục 3 trong `docs/PLAN_PASSWORD_SOFTWARE.md`: Employee thấy danh sách phần mềm nhưng không thấy đường dẫn cài đặt hệ thống (`FilePath`).
+- Backend `MachineInformationService.cs`: hàm `GetForSessionAsync` cho phiên máy nhân viên loại bỏ `FilePath` (gán `null`) trên toàn bộ danh sách `Software`. Endpoint quản trị `GetAsync` vẫn giữ nguyên `FilePath` đầy đủ cho Admin.
+- Frontend `MachineWorkspace.tsx`: loại bỏ cột `Đường dẫn (chỉ hiển thị)` khỏi bảng phần mềm trên giao diện máy nhân viên; cập nhật ô tìm kiếm theo tên, phiên bản hoặc loại phần mềm; Admin modal `SpecificationModal.tsx` vẫn giữ nguyên trường FilePath để quản trị. Demo mock `frontend/admin/src/demo/server.ts` đồng bộ ẩn `filePath` cho route `/machines/:id/information`.
+- Kiểm thử: `MachineInformationTests` bổ sung 2 xác minh cho Admin (`Assert.Equal(@"C:\Apps\Editor.exe", ...)`) và Employee (`Assert.Equal(JsonValueKind.Null, ...)`); toàn bộ backend **108/108 PASS** qua `dotnet test backend/ITManagement.slnx --no-restore`; frontend **38/38 PASS** qua `npm test`; frontend `npm run build` PASS; browser smoke `node frontend/admin/tests/machine-workspace.cjs` PASS (xác minh cột đường dẫn không tồn tại trên màn hình nhân viên); các smoke test `tickets.cjs`, `admin-audit-pages.cjs`, `password-lifecycle.cjs` đều PASS; `git diff --check` PASS.
+- Không commit/push.
+
+### 24/11/2026 — Quản lý App/Service trên máy mô phỏng
+
+- Admin vào Tài sản → Cấu hình mô phỏng để thêm từng mục hoặc Tài sản → Thêm phần mềm hàng loạt để áp danh sách cho một hay nhiều máy. So trùng tên sau khi bỏ khoảng trắng hai đầu và không phân biệt hoa thường, so riêng từng loại App/Service. Máy đã có mục đó giữ nguyên phiên bản và đường dẫn. Kết quả ghi rõ số thêm và bỏ qua theo máy.
+- Employee xem tên và loại. Xóa một mục cần Admin xác nhận trong phiên máy hiện tại. API kiểm tra đúng máy, mục, phiên, phiên bản cấu hình và tài khoản Admin đang hoạt động. Giới hạn 5 lần gửi xác nhận/phút/Employee. Mục khai báo tách khỏi quota và nhật ký file. Dữ liệu cũ giữ nguyên, không cần migration SQL.
+- Frontend 40/40 đạt, build đạt. Hai bài kiểm tra giao diện bằng Edge (API giả lập) đã đạt cho luồng thêm hàng loạt và xác nhận xóa, bao gồm lỗi, thử lại, F5 và màn hình nhỏ. Log trong artifacts/managed-software-bulk-green.log và artifacts/software-confirm-recheck.log.
+- API 5038 và UI 5173 đã chạy. Trang Admin và GET /api/machines qua web trả HTTP 200. Kiểm thử ghi dữ liệu chỉ dùng database riêng. File nguồn của Agent cũ vẫn chờ người dùng cung cấp.
+- Bộ tích hợp SQL Server đạt 118/118, gồm 10 ca mới cho App/Service. Luồng chọn máy → đăng nhập → Desktop/Documents và lưu cấu hình cũ trên Edge cũng đạt. Log ở artifacts/managed-software-full.log và artifacts/software-workspace-regression.log.
+
+### 24/11/2026 — Bàn giao báo cáo Word
+- Bản cập nhật riêng trên Desktop: Bao_cao_do_an_Do_Tien_Dang_Khoa_cap_nhat_24-11-2026.docx. Cập nhật 5 chương, phụ lục chạy thử và căn cứ nghiệm thu. Word hiển thị 32 trang gồm phần đầu. Đã đối chiếu 43 tham chiếu số trang.
+- Giữ nguyên file gốc, style, font, cấu trúc bảng và cả 15 hình. Danh_sach_hinh_can_thay_24-11-2026.txt trên Desktop ghi đề xuất theo từng hình cho tác giả duyệt.
+
+### 24/11/2026 — Cập nhật README trên main
+- Thay phần đặc tả cũ bằng hướng dẫn Git Bash cho LocalDB, tách đăng nhập thật và demo, mô tả luồng Employee, App/Service, quota, nhật ký, ticket và mốc nghiệm thu hiện có.

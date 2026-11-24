@@ -1,5 +1,7 @@
 import MyAssets from './MyAssets';
-import { Alert, Button, Card, Descriptions, Typography } from 'antd';
+import EmployeeTickets from './EmployeeTickets';
+import TechnicianTickets from './TechnicianTickets';
+import { Button, Card, Descriptions, Typography } from 'antd';
 import type { UserResponse } from '../types/auth';
 /** Hiển thị hồ sơ và các chức năng cổng thông tin phù hợp với vai trò. */
 export default function PortalPage({ user, onLogout }: { user: UserResponse; onLogout: () => void }) {
@@ -22,8 +24,9 @@ export default function PortalPage({ user, onLogout }: { user: UserResponse; onL
         <Button type="primary" href="/machines">Chọn máy làm việc</Button>
       </Card>
       <MyAssets />
+      <EmployeeTickets />
     </>}
-    <Alert style={{ marginTop: 16 }} type="info" showIcon message={user.role === 'Employee' ? 'Chức năng gửi yêu cầu hỗ trợ đang được hoàn thiện.' : 'Hồ sơ đã kết nối API. Danh sách và xử lý ticket được phân công sẽ được bổ sung trong phần Ticket.'} />
+    {user.role === 'Technician' && <TechnicianTickets />}
   </main>;
 }
 

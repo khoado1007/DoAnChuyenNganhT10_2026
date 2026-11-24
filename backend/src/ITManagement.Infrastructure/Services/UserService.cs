@@ -15,6 +15,24 @@ namespace ITManagement.Infrastructure.Services;
 /// <summary>Khởi tạo dịch vụ tạo, liệt kê và cập nhật tài khoản.</summary>
 public sealed class UserService(AppDbContext db, UserManager<IdentityUser> identities) : IUserService
 {
+    public async Task<UserResponse> ResetPasswordAsync(Guid id, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var user = await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {id}").SingleOrDefaultAsync(ct)
+            ?? throw new NotFoundException("User", id);
+        if (user.Role == UserRole.Admin) throw new BusinessRuleException("Không reset tài khoản Admin tại đây.");
+        var identity = await identities.FindByIdAsync(user.IdentityUserId) ?? throw new NotFoundException("Identity", id);
+        EnsureSuccess(await identities.ResetPasswordAsync(identity, await identities.GeneratePasswordResetTokenAsync(identity), PasswordPolicyService.DefaultPassword));
+        var wasExpired = user.PasswordExpiredLock;
+        PasswordPolicyService.BeginCycle(user);
+        user.PasswordExpiredLock = wasExpired; // Reset does not activate a locked account.
+        user.SecurityVersion++;
+        user.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return UserResponse.From(user);
+    }
+
     // Kiểm tra vai trò được phép cấp cho tài khoản.
     private static void CheckRole(UserRole role)
     {
@@ -53,7 +71,7 @@ public sealed class UserService(AppDbContext db, UserManager<IdentityUser> ident
         try
         {
             var identity = new IdentityUser { UserName = request.Username.Trim(), Email = request.Email.Trim().ToLowerInvariant(), EmailConfirmed = true };
-            EnsureSuccess(await identities.CreateAsync(identity, request.Password));
+            EnsureSuccess(await identities.CreateAsync(identity, request.Password ?? PasswordPolicyService.DefaultPassword));
             EnsureSuccess(await identities.AddToRoleAsync(identity, request.Role.ToString()));
             var user = new AppUser
             {
@@ -61,6 +79,7 @@ public sealed class UserService(AppDbContext db, UserManager<IdentityUser> ident
                 FullName = request.FullName.Trim(), Department = request.Department?.Trim() ?? "",
                 Role = request.Role, Status = UserStatus.Active
             };
+            PasswordPolicyService.BeginCycle(user);
             user.StorageQuota = new StorageQuota { UserId = user.Id };
             db.AppUsers.Add(user);
             await db.SaveChangesAsync(ct);
@@ -95,6 +114,7 @@ public sealed class UserService(AppDbContext db, UserManager<IdentityUser> ident
             user.FullName = request.FullName.Trim();
             user.Department = request.Department?.Trim() ?? "";
             user.Role = request.Role;
+            if (user.PasswordExpiredLock && request.Status == UserStatus.Active) PasswordPolicyService.BeginCycle(user);
             user.Status = request.Status;
             user.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);

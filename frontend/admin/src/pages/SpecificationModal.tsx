@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Form, Input, InputNumber, Modal, Select, Space } from 'antd';
 import { api } from '../api/auth';
-import { specificationLabels, type MachineSpecification, type Software } from '../types/machine-information';
+import { specificationLabels, softwareKinds, type MachineSpecification, type Software } from '../types/machine-information';
 
 type FormValues = Omit<MachineSpecification, 'lastRestartedAt' | 'software'> & {
   lastRestartedAt?: string; software: (Omit<Software, 'lastUsedAt'> & { lastUsedAt?: string })[];
@@ -27,7 +27,7 @@ export default function SpecificationModal({ assetId, onClose }: { assetId: stri
     setSaving(true); setError('');
     try {
       const body = Object.fromEntries(Object.keys(specificationLabels).map(key => [key, values[key as keyof FormValues] ?? null]));
-      await api(`/assets/${assetId}/specification`, { method: 'PUT', body: JSON.stringify({ ...body, lastRestartedAt: values.lastRestartedAt ? new Date(values.lastRestartedAt).toISOString() : null, software: (values.software ?? []).map(item => ({ ...item, lastUsedAt: item.lastUsedAt ? new Date(item.lastUsedAt).toISOString() : null })) }) });
+      await api(`/assets/${assetId}/specification`, { method: 'PUT', body: JSON.stringify({ ...body, revision: values.revision, lastRestartedAt: values.lastRestartedAt ? new Date(values.lastRestartedAt).toISOString() : null, software: (values.software ?? []).map(item => ({ ...item, lastUsedAt: item.lastUsedAt ? new Date(item.lastUsedAt).toISOString() : null })) }) });
       onClose();
     } catch (cause) { setError((cause as Error).message); } finally { setSaving(false); }
   }
@@ -35,20 +35,24 @@ export default function SpecificationModal({ assetId, onClose }: { assetId: stri
     <p>Dữ liệu khai báo cho máy mô phỏng. Không phải số liệu thu thập từ máy thật. Để trống nếu chưa biết.</p>
     {error && <Alert type="error" showIcon message={error} action={<Button disabled={saving} onClick={() => setAttempt(value => value + 1)}>Tải lại</Button>} />}
     {loading ? <p role="status">Đang tải cấu hình…</p> : loaded && <Form form={form} layout="vertical" onFinish={save} disabled={saving}>
+      <Form.Item name="revision" hidden><Input /></Form.Item>
       {Object.entries(specificationLabels).map(([key, label]) => <Form.Item key={key} name={key} label={label} rules={key === 'diskFreeGb' ? [{ validator: async (_, value) => { const total = form.getFieldValue('diskTotalGb'); if (value != null && (total == null || value > total)) throw new Error('Dung lượng trống cần có tổng ổ đĩa và không được lớn hơn tổng.'); } }] : []} dependencies={key === 'diskFreeGb' ? ['diskTotalGb'] : undefined}>
         {key.endsWith('Gb') ? <InputNumber min={0} style={{ width: '100%' }} /> : key === 'diskEncryption' ? <Select allowClear placeholder="Chưa khai báo" options={[{ value: true, label: 'Có' }, { value: false, label: 'Không' }]} /> : key.endsWith('At') ? <Input type="datetime-local" /> : <Input maxLength={key.endsWith('Ip') ? 45 : 200} />}
       </Form.Item>)}
       <Form.List name="software">{(fields, { add, remove }) => <>
         <h3>Phần mềm ({fields.length}/200)</h3>
+        <p>Do Admin quản lý; không tính quota hoặc ghi lịch sử file. Đường dẫn chỉ Admin xem được.</p>
         {fields.map(field => <Card key={field.key} size="small" style={{ marginBottom: 12 }} title={`Phần mềm ${field.name + 1}`} extra={<Button danger disabled={saving} onClick={() => remove(field.name)}>Xóa dòng</Button>}>
+          <Form.Item name={[field.name, 'id']} hidden><Input /></Form.Item>
           <Form.Item name={[field.name, 'name']} label="Tên phần mềm" rules={[{ required: true, whitespace: true }]}><Input maxLength={200} /></Form.Item>
+          <Form.Item name={[field.name, 'kind']} label="Phân loại" rules={[{ required: !form.getFieldValue(['software', field.name, 'id']), message: 'Chọn App hoặc Service.' }]}><Select aria-label="Phân loại" allowClear placeholder="Chưa phân loại" options={softwareKinds} /></Form.Item>
           <Form.Item name={[field.name, 'version']} label="Phiên bản"><Input maxLength={100} /></Form.Item>
-          <Form.Item name={[field.name, 'type']} label="Loại"><Input maxLength={100} /></Form.Item>
+          <Form.Item name={[field.name, 'type']} label="Loại chi tiết (tùy chọn)"><Input maxLength={100} /></Form.Item>
           <Form.Item name={[field.name, 'vulnerabilities']} label="Lỗ hổng"><Input.TextArea maxLength={2000} /></Form.Item>
           <Form.Item name={[field.name, 'lastUsedAt']} label="Sử dụng gần nhất"><Input type="datetime-local" /></Form.Item>
-          <Form.Item name={[field.name, 'filePath']} label="Đường dẫn (chỉ hiển thị)"><Input maxLength={1000} /></Form.Item>
+          <Form.Item name={[field.name, 'filePath']} label="Đường dẫn (chỉ Admin)"><Input maxLength={1000} /></Form.Item>
         </Card>)}
-        <Button disabled={saving || fields.length >= 200} onClick={() => add({})}>Thêm phần mềm</Button>
+        <Button disabled={saving || fields.length >= 200} onClick={() => add({ kind: 'App' })}>Thêm phần mềm</Button>
       </>}</Form.List>
       <Space style={{ marginTop: 20 }}><Button type="primary" htmlType="submit" loading={saving}>Lưu cấu hình</Button><Button disabled={saving} onClick={onClose}>Hủy</Button></Space>
     </Form>}

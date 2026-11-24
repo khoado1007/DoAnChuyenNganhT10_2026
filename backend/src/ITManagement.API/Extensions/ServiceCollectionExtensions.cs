@@ -38,6 +38,8 @@ public static class ServiceCollectionExtensions
                         || !int.TryParse(principal.FindFirstValue("security_version"), out var version))
                     { context.Fail("Invalid user session."); return; }
                     var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                    await context.HttpContext.RequestServices.GetRequiredService<ITManagement.Application.Services.IPasswordPolicyService>()
+                        .ExpireAsync(id, context.HttpContext.RequestAborted);
                     var user = await db.AppUsers.AsNoTracking().SingleOrDefaultAsync(u => u.Id == id, context.HttpContext.RequestAborted);
                     if (user is null || user.Status != UserStatus.Active || user.SecurityVersion != version
                         || user.Role.ToString() != principal.FindFirstValue(ClaimTypes.Role))

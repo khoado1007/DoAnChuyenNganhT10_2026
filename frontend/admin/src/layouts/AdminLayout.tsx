@@ -4,7 +4,7 @@ import { Avatar, Button, Dropdown, Typography } from 'antd';
 import { AppstoreOutlined, FileSearchOutlined, LaptopOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, TeamOutlined } from '@ant-design/icons';
 import type { UserResponse } from '../types/auth';
 
-export type Section = 'overview' | 'assets' | 'users' | 'tickets' | 'quotas' | 'agents';
+export type Section = 'overview' | 'assets' | 'users' | 'tickets' | 'quotas' | 'agents' | 'audit-log' | 'files-admin';
 const { Text } = Typography;
 const navItems: { key: Section; label: string; icon: ReactNode; group: string }[] = [
   { key: 'overview', label: 'Tổng quan', icon: <AppstoreOutlined />, group: 'KHÔNG GIAN LÀM VIỆC' },
@@ -12,6 +12,8 @@ const navItems: { key: Section; label: string; icon: ReactNode; group: string }[
   { key: 'assets', label: 'Tài sản', icon: <LaptopOutlined />, group: 'QUẢN LÝ TÀI SẢN' },
   { key: 'quotas', label: 'Quota profile', icon: <LaptopOutlined />, group: 'QUẢN TRỊ' },
   { key: 'users', label: 'Tài khoản', icon: <TeamOutlined />, group: 'QUẢN TRỊ' },
+  { key: 'audit-log', label: 'Nhật ký thao tác', icon: <FileSearchOutlined />, group: 'QUẢN TRỊ' },
+  { key: 'files-admin', label: 'Metadata file', icon: <FileSearchOutlined />, group: 'QUẢN TRỊ' },
 ];
 
 /** Hiển thị khung quản trị gồm điều hướng, thanh tiêu đề và nội dung trang. */
@@ -31,7 +33,7 @@ export default function AdminLayout({ user, section, title, onSectionChange, onL
       <nav className="side-nav" aria-label="Điều hướng chính">
         {navItems.map((item, index) => <div key={item.key}>
           {(index === 0 || navItems[index - 1].group !== item.group) && <div className="nav-group-label">{item.group}</div>}
-          <button className={`nav-link ${section === item.key ? 'active' : ''}`} onClick={() => { onSectionChange(item.key); setMobileNav(false); }} aria-current={section === item.key ? 'page' : undefined}><span className="nav-icon">{item.icon}</span><span>{item.label}</span></button>
+          <button className={`nav-link ${section === item.key ? 'active' : ''}`} onClick={() => { onSectionChange(item.key); setMobileNav(false); }} aria-current={section === item.key ? 'page' : undefined} aria-label={item.label}><span className="nav-icon">{item.icon}</span><span>{item.label}</span></button>
         </div>)}
       </nav>
       <div className="sidebar-bottom"><Dropdown dropdownRender={() => menu} trigger={['click']} placement="topLeft"><button className="sidebar-profile"><Avatar className="admin-avatar">{initials}</Avatar><span className="profile-info"><b>{user.fullName}</b><small>Quản trị hệ thống</small></span><span className="profile-dots">···</span></button></Dropdown></div>
