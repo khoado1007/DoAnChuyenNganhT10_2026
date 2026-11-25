@@ -45,7 +45,7 @@ public sealed partial class ProfileOperationService(
             s => s.Id == sessionId && s.AssetId == assetId && s.UserId == userId && s.EndedAt == null, ct)
             ?? throw Forbidden("Phiên làm việc không tồn tại hoặc đã kết thúc.");
 
-        if (session.ExpiresAt <= Now)
+        if (session.IsExpired(Now))
             throw Forbidden("Phiên làm việc đã hết hạn.");
 
         var user = await db.AppUsers.AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId, ct)
@@ -292,7 +292,7 @@ public sealed partial class ProfileOperationService(
             return new AgentAuthorizeResponse(await CanReconcileAsync(op, reconciliationId, ct), "RECONCILIATION_AUTHORIZATION");
 
         var session = await db.DeviceSessions.AsNoTracking().SingleOrDefaultAsync(s => s.Id == op.SessionId, ct);
-        if (session is null || session.EndedAt != null || session.ExpiresAt <= Now)
+        if (session is null || session.EndedAt != null || session.IsExpired(Now))
             return new AgentAuthorizeResponse(false, "SESSION_EXPIRED");
 
         var user = await db.AppUsers.AsNoTracking().SingleOrDefaultAsync(u => u.Id == session.UserId, ct);

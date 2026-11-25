@@ -42,6 +42,33 @@ public sealed class ServerSimulationTests(ServerApiFactory factory) : IClassFixt
     private static Task<HttpResponseMessage> Op(HttpClient c, Guid asset, object op) => c.PostAsJsonAsync($"/api/machines/{asset}/files/operations", op);
 
     [Fact]
+    public async Task Tab_departure_reserves_machine_until_deadline_and_a_newer_resume_cancels_it()
+    {
+        var (admin, employee, asset, session, _) = await Setup();
+        using var a = admin;
+        using var e = employee;
+        var route = $"/api/machines/{asset}";
+        Task<HttpResponseMessage> Page(long sequence, bool leaving) =>
+            e.PostAsJsonAsync(route + "/page", new { sequence, leaving });
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var row = db.DeviceSessions.Where(s => s.Id == session);
+        Assert.Equal(HttpStatusCode.NoContent, (await Page(1, true)).StatusCode);
+        var deadline = (await row.AsNoTracking().SingleAsync()).TabClosesAt;
+        Assert.InRange(deadline!.Value, DateTime.UtcNow.AddSeconds(50), DateTime.UtcNow.AddMinutes(1));
+        Assert.Equal(HttpStatusCode.Conflict, (await e.PostAsJsonAsync(route + "/sessions", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Page(3, false)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Page(2, true)).StatusCode);
+        Assert.Null((await row.AsNoTracking().SingleAsync()).TabClosesAt);
+        Assert.Equal(HttpStatusCode.OK, (await e.GetAsync(route + "/profile")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Page(4, true)).StatusCode);
+        await row.ExecuteUpdateAsync(s => s.SetProperty(x => x.TabClosesAt, DateTime.UtcNow.AddSeconds(-1)));
+        Assert.Equal(HttpStatusCode.Forbidden, (await Page(5, false)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.GetAsync(route + "/profile")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await e.PostAsJsonAsync(route + "/sessions", new { })).StatusCode);
+    }
+
+    [Fact]
     public async Task Active_employee_uses_machine_without_agent_or_grant_and_files_survive_new_session()
     {
         var (admin, employee, asset, session, _) = await Setup(); using var a = admin; using var e = employee;

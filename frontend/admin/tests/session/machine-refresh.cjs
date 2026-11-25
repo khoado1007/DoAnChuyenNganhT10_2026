@@ -24,22 +24,12 @@ const base = process.env.ITAM_UI_URL || 'http://127.0.0.1:5192';
     assert.equal(request.headers()['authorization'],'Bearer employee-token');
     status=profileStatus;data=profile;
    } else if(path==='/api/machines/machine-a/logout'){assert.equal(request.headers()['authorization'],'Bearer employee-token');logout++;data={ended:true};}
+   else if(path.endsWith('/page') || path.endsWith('/password-policy')) data={};
+   else if(path.endsWith('/information')) data={software:[]};
    else throw new Error('Unexpected request '+path);
    await route.fulfill({status,contentType:'application/json',body:JSON.stringify({success:status===200,data,message:status===200?'':'Phiên không khả dụng'})});
   });
   await page.goto(base+'/employee');
-  await page.getByLabel('Tên đăng nhập',{exact:true}).fill('khoa');
-  await page.getByLabel('Mật khẩu',{exact:true}).fill('test-password');
-  await page.getByRole('button',{name:/Đăng nhập/}).click();
-  await page.getByRole('link',{name:'Chọn máy làm việc',exact:true}).waitFor();
-  if(process.env.ITAM_SCREENSHOT_DIR){
-   require('node:fs').mkdirSync(process.env.ITAM_SCREENSHOT_DIR,{recursive:true});
-   await page.setViewportSize({width:390,height:844});
-   await page.screenshot({path:require('node:path').join(process.env.ITAM_SCREENSHOT_DIR,'employee-mobile.png'),fullPage:true});
-   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Portal mobile overflow');
-   await page.setViewportSize({width:1280,height:900});
-  }
-  await page.getByRole('link',{name:'Chọn máy làm việc',exact:true}).click();
   await page.getByRole('button',{name:'Chọn máy →',exact:true}).first().click();
   await page.getByLabel('Domain ID',{exact:true}).fill('COMPANY\\khoa');
   await page.getByLabel('Mật khẩu',{exact:true}).fill('test-password');
@@ -67,7 +57,7 @@ const base = process.env.ITAM_UI_URL || 'http://127.0.0.1:5192';
   await page.getByLabel('Mật khẩu',{exact:true}).fill('test-password');
   await page.getByRole('button',{name:'Đăng nhập máy',exact:true}).click();await page.getByText('saved.txt',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Đăng xuất / Đổi máy',exact:true}).click();
-  await page.getByRole('heading',{name:'Chọn nơi làm việc của bạn.',exact:true}).waitFor();assert.equal(logout,1);
+  await page.waitForURL('**/machine-a/login');assert.equal(logout,1);
   await page.goto(base+'/machines/machine-a/desktop');await page.getByRole('button',{name:'Đăng nhập máy',exact:true}).waitFor();
   assert.equal(await page.getByText('saved.txt',{exact:true}).count(),0);
   // Failed profile initialization must close its server session before dropping the token.

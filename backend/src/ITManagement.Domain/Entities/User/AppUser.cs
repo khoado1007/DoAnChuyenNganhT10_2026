@@ -9,7 +9,7 @@ namespace ITManagement.Domain.Entities.User;
 /// Người dùng hệ thống: Admin, Kỹ thuật viên, Nhân viên.
 /// Tách riêng khỏi ASP.NET Identity để domain không phụ thuộc framework.
 /// </summary>
-public class AppUser : BaseEntity
+public partial class AppUser : BaseEntity
 {
     public int SecurityVersion { get; set; }
     public bool RequiresPasswordChange { get; set; }

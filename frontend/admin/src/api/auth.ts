@@ -29,5 +29,24 @@ export async function login(values: LoginRequest): Promise<UserResponse> {
   return result.user;
 }
 
+export function endMachineSession(saved: { deviceId: string; sessionId: string }) {
+  return api(`/machines/${encodeURIComponent(saved.deviceId)}/logout`, {
+    method: 'POST', headers: { 'X-Device-Session': saved.sessionId },
+  });
+}
+
+/** Thứ tự trong tab bảo vệ phiên khi tín hiệu rời trang đến sau yêu cầu khôi phục. */
+export async function reportMachinePage(leaving: boolean) {
+  const saved = deviceSessions.read();
+  if (!saved || !getToken() || isDemoMode) return;
+  const key = 'itdesk.machinePageSequence';
+  const sequence = Number(sessionStorage.getItem(key) || 0) + 1;
+  sessionStorage.setItem(key, String(sequence));
+  await api(`/machines/${encodeURIComponent(saved.deviceId)}/page`, {
+    method: 'POST', keepalive: leaving, headers: { 'X-Device-Session': saved.sessionId },
+    body: JSON.stringify({ sequence, leaving }),
+  });
+}
+
 /** Lấy hồ sơ của phiên hiện tại; cho phép hủy yêu cầu khi component bị tháo. */
 export const getCurrentUser = (signal?: AbortSignal) => api<UserResponse>('/auth/me', { signal });

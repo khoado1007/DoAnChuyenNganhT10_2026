@@ -5,7 +5,7 @@
 Luồng mô phỏng web **không cần Python Agent, enrollment token hoặc quyền riêng từng máy**. API mặc định `Simulation:UseAgent=false`. Admin tạo/kích hoạt Employee và thêm máy Desktop/Laptop/Server ở trạng thái Sẵn sàng hoặc Đã bàn giao. Mọi Employee active được đăng nhập các máy này.
 
 1. Admin vào `/admin` → Tài khoản để tạo Employee; Tài sản để thêm máy, mở **Cấu hình mô phỏng** nhập thông số/phần mềm. Dữ liệu chưa nhập hiển thị “Chưa khai báo”.
-2. Employee mở `/` hoặc `/employee` → chọn máy → đăng nhập → xem Chi tiết, Phần mềm, Desktop/Documents. Không có quyền sửa cấu hình máy.
+2. Employee mở `/` hoặc `/employee` → chọn máy → xem tên, mã máy → đăng nhập một lần → mở ngay Desktop/Documents. Chi tiết máy và Phần mềm nằm cùng màn hình. Không có quyền sửa cấu hình máy.
 3. Trong Desktop/Documents: tạo/sửa TXT/CSV, nhập Office/PDF, đổi tên/di chuyển/sao chép/xóa/khôi phục. Mặc định 10 file/profile; quản trị chỉnh ở Quota.
 
 File lưu thật trên server: mặc định `backend/src/ITManagement.API/storage/simulation` khi chạy API từ project này; có thể đặt `Simulation__StorageRoot` thành đường dẫn tuyệt đối riêng. Blob dùng GUID, tách theo máy/người/profile; tên và thư mục Desktop/Documents/RecycleBin lưu trong SQL. Không dùng đường dẫn phần mềm trong bảng Software để mở file trên server. Nội dung nằm ngoài web root, chỉ đọc qua phiên hợp lệ. Phiên bản blob cũ/orphan được giữ, chưa có tác vụ tự dọn; cần sao lưu cả DB và kho file.
@@ -21,6 +21,10 @@ dotnet build backend/ITManagement.slnx --artifacts-path artifacts/server-simulat
 ```
 
 Python ở lệnh trên chỉ điều phối kiểm thử; không cần Python để chạy web/API hằng ngày. Các hướng dẫn Agent bên dưới là luồng cũ, chỉ dùng khi chủ động đặt `Simulation__UseAgent=true`; không dùng cho demo mô phỏng web mới.
+
+Đăng xuất trả về màn hình đăng nhập của cùng máy. Bấm **Chọn máy khác** để đổi thiết bị. Khi tab báo rời trang, máy chủ chờ 60 giây. F5 hoặc quay lại trong thời gian này sẽ khôi phục phiên còn hợp lệ. Nếu trình duyệt bị buộc tắt hoặc mất mạng trước khi gửi tín hiệu, phiên máy hết hạn theo hạn gốc (tối đa 8 giờ). Để tab mở ở nền không kích hoạt đếm ngược.
+
+Đối với database hiện có, sao lưu rồi áp dụng migration `EmployeeTabDeparture` một lần trước khi chạy API mới. Migration thêm hai cột theo dõi tab vào bảng phiên máy.
 
 ## Môi trường
 - Chạy ứng dụng: .NET SDK hỗ trợ net10.0, Node.js/npm. Python3.11+ chỉ cần cho bộ kiểm thử hoặc Agent legacy.
@@ -68,7 +72,7 @@ Mở http://localhost:5173. URL gốc tự chuyển đến `/employee`; Vite chu
 - `/admin`: nhập trực tiếp URL để mở cổng Admin, nền navy và thẻ đăng nhập trắng. Không có liên kết sang Admin ở cổng nhân viên/trang chọn máy. Chỉ tài khoản Admin đăng nhập tại cổng này.
 - `/login`: đường dẫn đăng nhập tương thích; tài khoản sẽ được đưa đến khu vực theo vai trò.
 - `/machines`: chọn máy, đăng nhập Domain ID mô phỏng và làm việc với profile.
-- `/employee/tickets`: cổng Employee gửi/theo dõi yêu cầu hỗ trợ (cũng mở được từ nút **Yêu cầu hỗ trợ** trên màn hình chọn máy).
+- `/employee/tickets`: cổng Employee gửi/theo dõi yêu cầu hỗ trợ (cũng mở được từ nút **Yêu cầu hỗ trợ** trên Desktop sau khi đăng nhập).
 - `/admin/tickets`: Admin lọc, xem chi tiết, trao đổi, thêm ghi chú nội bộ và chuyển trạng thái ticket.
 
 Giao diện nhân viên nằm chung React SPA trong `frontend/admin`; `frontend/employee` chưa có ứng dụng riêng.

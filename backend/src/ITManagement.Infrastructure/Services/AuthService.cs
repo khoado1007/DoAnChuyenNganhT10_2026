@@ -35,10 +35,7 @@ public sealed class AuthService(UserManager<IdentityUser> userManager, IUserRepo
             throw new BusinessRuleException(result.Errors.Any(e => e.Code == "PasswordMismatch")
                 ? "Mật khẩu hiện tại không đúng."
                 : "Mật khẩu mới không hợp lệ. Dùng ít nhất 8 ký tự, có chữ thường và chữ số.");
-        user.RequiresPasswordChange = false;
-        user.PasswordFirstLoginAt = null;
-        user.PasswordReminderDay = 0;
-        user.PasswordExpiredLock = false;
+        user.CompletePasswordChange();
         user.SecurityVersion++;
         user.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
@@ -75,8 +72,7 @@ public sealed class AuthService(UserManager<IdentityUser> userManager, IUserRepo
         if (!await userManager.CheckPasswordAsync(identity, request.Password)) throw InvalidCredentials();
         if (user is null || user.Status != UserStatus.Active) throw InvalidCredentials();
 
-        if (user.Role == UserRole.Employee && user.RequiresPasswordChange && user.PasswordFirstLoginAt is null)
-            user.PasswordFirstLoginAt = clock.GetUtcNow().UtcDateTime;
+        user.RecordPasswordLogin(clock.GetUtcNow().UtcDateTime);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         var token = jwt.GenerateAccessToken(user.Id, user.Username, user.Role.ToString(), user.Email, user.SecurityVersion);

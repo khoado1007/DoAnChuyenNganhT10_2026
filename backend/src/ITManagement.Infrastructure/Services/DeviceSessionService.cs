@@ -96,7 +96,7 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         if (existing is not null)
         {
             var owner = await db.AppUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == existing.UserId, ct);
-            if (existing.ExpiresAt > Now && owner is { Status: UserStatus.Active, Role: UserRole.Employee }
+            if (!existing.IsExpired(Now) && owner is { Status: UserStatus.Active, Role: UserRole.Employee }
                 && await db.LocalProfiles.AnyAsync(p => p.Id == existing.ProfileId && p.StorageBackend == backend, ct)
                 && owner.SecurityVersion == existing.SecurityVersion
                 && (!UseAgent || await db.DeviceAccessGrants.AnyAsync(x => x.AssetId == assetId && x.UserId == existing.UserId && x.RevokedAt == null, ct)))
@@ -117,6 +117,26 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return new(session.Id, asset.Id, profile.Id, "COMPANY\\" + user.Username, asset.Name, session.ExpiresAt);
+    }
+
+    public async Task UpdatePageAsync(Guid assetId, Guid sessionId, long sequence, bool leaving, CancellationToken ct)
+    {
+        if (current.Role != UserRole.Employee || current.UserId is not Guid userId) throw Forbidden();
+        if (sequence <= 0) throw new SimulationException(400, "INVALID_SEQUENCE", "Số thứ tự sự kiện tab không hợp lệ.");
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await LockAsset(assetId, ct);
+        var session = await db.DeviceSessions.SingleOrDefaultAsync(s => s.Id == sessionId
+            && s.AssetId == assetId && s.UserId == userId && s.EndedAt == null, ct);
+        var now = Now;
+        if (session is null || session.IsExpired(now)) throw Forbidden();
+        // F5 có thể gửi tín hiệu mở trang mới trước khi tín hiệu rời trang cũ tới server.
+        if (sequence > session.PageSequence)
+        {
+            session.PageSequence = sequence;
+            session.TabClosesAt = leaving ? now.AddMinutes(1) : null;
+            await db.SaveChangesAsync(ct);
+        }
+        await tx.CommitAsync(ct);
     }
 
     public async Task EndAsync(Guid assetId, Guid sessionId, CancellationToken ct)

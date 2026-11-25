@@ -18,10 +18,6 @@ for (const value of [process.env.ITAM_UI_URL, process.env.ITAM_API_URL]) { const
  page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/sessions'))starts++;});
  try{
   await page.goto(ui+'/employee?demo=0');
-  await page.getByLabel('Tên đăng nhập',{exact:true}).fill('live_employee');
-  await page.getByLabel('Mật khẩu',{exact:true}).fill(password);
-  await page.getByRole('button',{name:/Đăng nhập$/}).click();
-  await page.getByRole('link',{name:'Chọn máy làm việc',exact:true}).click();
   await page.getByRole('button',{name:'Chọn máy →',exact:true}).click();
   async function enter(){
    await page.getByLabel('Domain ID',{exact:true}).fill('COMPANY\\live_employee');
@@ -30,6 +26,7 @@ for (const value of [process.env.ITAM_UI_URL, process.env.ITAM_API_URL]) { const
    await page.getByRole('button',{name:'Tạo TXT/CSV',exact:true}).waitFor();
   }
   await enter();
+  await page.getByRole('button',{name:'Bỏ qua lần này'}).click();
   console.log('PASS 1: portal -> select machine -> domain login -> real Agent ensure');
   await page.getByRole('button',{name:'Tạo TXT/CSV',exact:true}).click();
   await page.getByLabel('Tên file',{exact:true}).fill('live-note.txt');
@@ -65,11 +62,11 @@ for (const value of [process.env.ITAM_UI_URL, process.env.ITAM_API_URL]) { const
   console.log('PASS 5: another employee cannot read profile or start unauthorized session');
   await page.screenshot({path:path.join(process.env.ITAM_ARTIFACTS,'desktop-live.png'),fullPage:true});
   await page.getByRole('button',{name:'Đăng xuất / Đổi máy',exact:true}).click();
-  await page.getByRole('button',{name:'Chọn máy →',exact:true}).waitFor();
+  await page.waitForURL('**/machines/'+device+'/login');
   assert(await page.evaluate(()=>sessionStorage.getItem('itdesk.accessToken'))===null,'Token was not cleared');
   assert.equal((await call(route+'/profile',{token,session})).status,403);
   console.log('PASS 6: logout clears browser token and server rejects ended session');
-  await page.getByRole('button',{name:'Chọn máy →',exact:true}).click();await enter();
+  await enter();
   await page.getByText('live-note.txt',{exact:true}).waitFor();
   const me=await call('/auth/me',{token});assert.equal(me.status,200);
   assert.equal((await call('/assets/'+device+'/access/'+me.body.data.id,{method:'DELETE',token:process.env.ITAM_ADMIN_TOKEN})).status,200);

@@ -7,7 +7,8 @@ const { ITAM_UI_URL: base, ITAM_DEVICE: device, ITAM_OTHER_DEVICE: otherDevice, 
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, timezoneId: 'Asia/Ho_Chi_Minh' });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, timezoneId: 'Asia/Ho_Chi_Minh' });
+    const page = await context.newPage();
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     const row = name => page.getByRole('row').filter({ hasText: name });
     const chooseFile = async name => { await row(name).getByRole('radio').check(); };
@@ -18,7 +19,13 @@ const { ITAM_UI_URL: base, ITAM_DEVICE: device, ITAM_OTHER_DEVICE: otherDevice, 
     await page.getByLabel('Domain ID').fill('web_employee');
     await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Đăng nhập máy', exact: true }).click();
-    await page.getByRole('tab', { name: 'Chi tiết', exact: true }).waitFor();
+    await page.getByRole('button', {name: 'Tạo TXT/CSV'}).waitFor();
+    const reminder = page.getByRole('button', { name: 'Bỏ qua lần này' });
+    await reminder.click();
+    await page.getByRole('button', {name:'Yêu cầu hỗ trợ',exact:true}).click();
+    await page.getByRole('link', {name:'Trở về Desktop'}).click();
+    await page.getByRole('button', {name:'Tạo TXT/CSV'}).waitFor();
+    await page.getByRole('tab', { name: 'Chi tiết', exact: true }).click();
     await page.getByText('Windows 11 · mô phỏng', { exact: true }).first().waitFor();
     console.log('PASS choose machine and login without Agent/grant');
     await page.screenshot({ path: path.join(artifact, 'machine-details.png'), fullPage: true, animations: 'disabled' });
@@ -73,6 +80,8 @@ const { ITAM_UI_URL: base, ITAM_DEVICE: device, ITAM_OTHER_DEVICE: otherDevice, 
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(artifact, 'machine-mobile.png'), fullPage: true, animations: 'disabled' });
     await page.getByRole('button', { name: 'Đăng xuất / Đổi máy', exact: true }).click();
+    await page.waitForURL(`**/machines/${device}/login`);
+    await page.getByRole('button', {name:'Chọn máy khác'}).click();
     await page.locator('.machine-card').filter({ hasText: 'WEB-2' }).getByRole('button').click();
     await page.getByLabel('Domain ID').fill('web_employee');
     await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
@@ -82,8 +91,26 @@ const { ITAM_UI_URL: base, ITAM_DEVICE: device, ITAM_OTHER_DEVICE: otherDevice, 
     assert.equal(new URL(page.url()).pathname, `/machines/${otherDevice}/desktop`);
     console.log('PASS other active machine available with isolated files and mobile layout');
     await page.getByRole('button', { name: 'Đăng xuất / Đổi máy', exact: true }).click();
+    await page.waitForURL(`**/machines/${otherDevice}/login`);
     assert.equal(await page.evaluate(() => sessionStorage.getItem('itdesk.accessToken')), null);
     assert.deepEqual(errors, []);
     console.log('PASS logout clears credentials; no browser errors');
+    const observer = await context.newPage();
+    await page.getByLabel('Domain ID').fill('web_employee');
+    await page.getByLabel('Mật khẩu', { exact:true }).fill(password);
+    await page.getByRole('button', {name:'Đăng nhập máy'}).click();
+    await page.getByRole('button', {name:'Tạo TXT/CSV'}).waitFor();
+    const token = await page.evaluate(() => sessionStorage.getItem('itdesk.accessToken'));
+    const acquire = () => observer.request.post(process.env.ITAM_API_URL + '/api/machines/' + otherDevice + '/sessions', {headers:{Authorization:'Bearer ' + token}});
+    await page.close();
+    assert.equal((await acquire()).status(),409);
+    const releaseDeadline = Date.now() + 70000;
+    let result;
+    do {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      result = await acquire();
+    } while (result.status() === 409 && Date.now() < releaseDeadline);
+    assert.equal(result.status(),200, 'Closing a real browser tab must release its machine');
+    console.log('PASS tab close releases machine after grace period');
   } finally { await browser.close(); }
 })().catch(e => { console.error(redactError(e)); process.exitCode = 1; });

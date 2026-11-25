@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Button, Form, Input, Typography } from 'antd';
 import { CheckCircleOutlined, LoginOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons';
 import { clearSession, login } from '../api/auth';
@@ -9,24 +9,33 @@ import type { LoginRequest, UserResponse } from '../types/auth';
 const { Text, Title } = Typography;
 
 /** Hiển thị biểu mẫu đăng nhập và chuyển hồ sơ hợp lệ về component cha. */
-export default function LoginPage({ onLogin, isAdminRoute }: { onLogin: (user: UserResponse) => void; isAdminRoute: boolean }) {
+type LoginProps = {
+  onLogin: (user: UserResponse) => void | Promise<void>;
+  isAdminRoute: boolean;
+  machine?: { name: string; assetCode?: string };
+  signedInEmployee?: UserResponse;
+  onChooseMachine?: () => void;
+  notice?: ReactNode;
+};
+export default function LoginPage({ onLogin, isAdminRoute, machine, signedInEmployee, onChooseMachine, notice }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [form] = Form.useForm<LoginRequest>();
 
   // Xác thực thông tin, cập nhật lỗi tổng quát và gắn lỗi API vào đúng trường biểu mẫu.
-  async function submit(values: LoginRequest) {
+  async function submit(values?: LoginRequest) {
     if (loading) return;
     setLoading(true);
     setError('');
     try {
-      const user = await login(values);
-      if (!canUseLoginPortal(isAdminRoute, user.role)) {
+      const user = values ? await login(values) : signedInEmployee;
+      if (!user) return;
+      if (!canUseLoginPortal(isAdminRoute, user.role) || (machine && user.role !== 'Employee')) {
         clearSession();
         setError('Tài khoản không có quyền đăng nhập tại cổng này.');
         return;
       }
-      onLogin(user);
+      await onLogin(user);
     }
     catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Không kết nối được máy chủ. Vui lòng thử lại.');
@@ -41,9 +50,9 @@ export default function LoginPage({ onLogin, isAdminRoute }: { onLogin: (user: U
   const loginForm = <>
     {error && <Alert className="login-preview-alert" type="error" showIcon message={error} role="alert" />}
     <Form form={form} layout="vertical" onFinish={submit} disabled={loading} requiredMark={false}>
-      <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true, whitespace: true, message: 'Vui lòng nhập tên đăng nhập.' }]}><Input autoComplete="username" autoFocus size="large" /></Form.Item>
+      <Form.Item name="username" label={machine ? "Domain ID" : "Tên đăng nhập"} rules={[{ required: true, whitespace: true, message: 'Vui lòng nhập tên đăng nhập.' }]}><Input autoComplete="username" autoFocus size="large" /></Form.Item>
       <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu.' }]}><Input.Password autoComplete="current-password" size="large" /></Form.Item>
-      <Button type="primary" size="large" htmlType="submit" block loading={loading} icon={<LoginOutlined />}>Đăng nhập</Button>
+      <Button type="primary" size="large" htmlType="submit" block loading={loading} icon={<LoginOutlined aria-hidden="true" />}>{machine ? "Đăng nhập máy" : "Đăng nhập"}</Button>
     </Form>
   </>;
 
@@ -68,9 +77,11 @@ export default function LoginPage({ onLogin, isAdminRoute }: { onLogin: (user: U
     </section>
     <section className="login-form-panel"><div className="login-form-wrap">
       <span className="login-icon"><UserOutlined /></span><Text className="eyebrow">KHU VỰC NHÂN VIÊN</Text>
-      <Title level={2}>Chào mừng trở lại</Title><Text className="muted login-intro">Đăng nhập bằng tài khoản nội bộ được cấp.</Text>
-      {loginForm}
-      <div className="login-secure"><CheckCircleOutlined /> Đăng nhập bằng tài khoản được cấp</div>
+      <Title level={2}>{machine ? machine.name : "Chào mừng trở lại"}</Title>
+      {machine && <p>{machine.assetCode && <>Mã tài sản <strong>{machine.assetCode}</strong> · </>}Máy đã chọn</p>}<Text className="muted login-intro">{signedInEmployee ? `Đã đăng nhập với tài khoản ${signedInEmployee.username}.` : "Đăng nhập bằng tài khoản nội bộ được cấp."}</Text>
+      {notice}
+      {signedInEmployee ? <Button type="primary" block size="large" loading={loading} onClick={() => void submit()}>Mở Desktop</Button> : loginForm}
+      {onChooseMachine && <Button type="link" disabled={loading} onClick={onChooseMachine}>Chọn máy khác</Button>}
     </div><Text className="login-copyright">© {new Date().getFullYear()} IT Desk · Hệ thống quản lý CNTT nội bộ</Text></section>
   </main>;
 

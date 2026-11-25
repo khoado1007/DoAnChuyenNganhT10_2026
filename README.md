@@ -40,7 +40,7 @@ Giữ cả hai terminal mở trong lúc sử dụng. Lệnh `npm ci` chỉ cần
 | Chức năng | Hành vi |
 | --- | --- |
 | Tài sản và bàn giao | Admin khai báo máy, theo dõi người nhận, trả máy và xem lịch sử. Desktop, Laptop và Server ở trạng thái sẵn sàng hoặc đã bàn giao có thể xuất hiện trong màn hình chọn máy. |
-| Phiên máy và hồ sơ | Mỗi máy chỉ có một phiên chưa kết thúc. F5 mở lại đúng Desktop nếu phiên và quyền còn hợp lệ. Nhân viên có hồ sơ và quota riêng trên từng máy. |
+| Phiên máy và hồ sơ | Mỗi máy chỉ có một phiên chưa kết thúc. Đăng nhập một lần để mở ngay Desktop/Documents. Đăng xuất trở về trang đăng nhập của máy đã chọn. F5 mở lại đúng Desktop nếu phiên và quyền còn hợp lệ. Khi nhận tín hiệu rời trang, máy chủ chờ 60 giây cho tab quay lại rồi giải phóng máy. Chuyển tab hoặc ngừng thao tác vẫn giữ phiên trong hạn bình thường. Nhân viên có hồ sơ và quota riêng trên từng máy. |
 | Tài khoản Employee | Admin tạo, khóa, mở lại hoặc reset mật khẩu. Employee đổi mật khẩu tại **Thông tin tài khoản** sau khi đăng nhập máy. |
 | Tài liệu và quota | Mặc định 10 file cho mỗi hồ sơ. Tạo, sao chép và khôi phục cần suất trống. Đổi tên, sửa và di chuyển giữ nguyên số file. Xóa đưa tài liệu vào thùng rác. Hỗ trợ sửa TXT/CSV, nhập tài liệu Office/PDF tối đa 8 MiB mỗi file. |
 | Nhật ký và metadata | Admin xem bảy thao tác file: tạo, sửa, đổi tên, di chuyển, sao chép, xóa và khôi phục. Trang metadata hiển thị tên, phần mở rộng, kích thước, chủ sở hữu và máy của file hiện tại. Hai trang dành cho việc tra cứu và không cung cấp nội dung tài liệu. |
@@ -78,10 +78,11 @@ npm --prefix frontend/admin run build
 
 Bộ kiểm thử tích hợp tạo database SQL Server riêng cho dữ liệu thử. Hướng dẫn chạy các kịch bản trình duyệt và cấu hình môi trường kiểm thử nằm trong [RUNNING.md](RUNNING.md).
 
-| Mốc nghiệm thu ngày 24/11/2026 | Kết quả đã ghi nhận |
+| Mốc nghiệm thu ngày 25/11/2026 | Kết quả đã ghi nhận |
 | --- | --- |
-| Backend với SQL Server | 118/118 kiểm thử đạt |
+| Backend với SQL Server | 119/119 kiểm thử đạt |
 | Frontend | 40/40 kiểm thử đạt, build thành công |
-| Trình duyệt Edge với API giả lập | 3 kịch bản đạt: thêm phần mềm hàng loạt, xác nhận xóa và hồi quy luồng chọn máy → Desktop/Documents |
+| Edge với API thật và SQL Server | 10 kiểm tra đạt, gồm chỉnh sửa và lưu tài liệu, khôi phục phiên sau F5, đăng xuất, giải phóng máy sau khi đóng tab. |
+| Trình duyệt Edge với API giả lập (mốc 24/11) | 3 kịch bản đạt: thêm phần mềm hàng loạt, xác nhận xóa và hồi quy luồng chọn máy → Desktop/Documents |
 
 **Phần còn mở:** một file thuộc kho Agent cũ đang chờ thư mục nguồn để chuyển nội dung. Ticket nâng cao (phân công kỹ thuật viên, SLA, đính kèm) chưa nằm trong mốc nghiệm thu. Xem [tiến độ và bàn giao](TIEN_DO_DO_AN.md) để đối chiếu kết quả từng phiên và [kế hoạch tài khoản, phần mềm](docs/PLAN_PASSWORD_SOFTWARE.md) để tra cứu các quyết định nghiệp vụ.

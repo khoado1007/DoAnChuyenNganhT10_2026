@@ -1,6 +1,130 @@
 # Tiến độ và bàn giao đồ án IT Management
 
-**Cập nhật gần nhất:** 24/11/2026 — giờ Việt Nam.
+## 25/11/2026 — Clean Architecture, vòng đời mật khẩu Employee
+
+- `Domain/Entities/User/AppUser.PasswordCycle.cs` là nơi quy định khi nào bắt đầu chu kỳ, lúc nào nhắc, điều kiện khóa và cách bắt đầu lại sau khi Admin mở khóa. Đăng nhập lần đầu bắt đầu tính giờ. Hệ thống nhắc ở lần đầu và sau 4, 5, 6 ngày, khóa khi đủ 7 ngày. Reset mật khẩu cho tài khoản đang khóa vẫn cần Admin mở khóa.
+- `AuthService`, `UserService` và `PasswordPolicyService` dùng chung các quy tắc này. Infrastructure vẫn chịu trách nhiệm cho Identity, giao dịch và cập nhật khóa tài khoản trong một câu SQL. Thay đổi không yêu cầu migration.
+- 7/7 ca kiểm thử quy tắc Domain chạy độc lập với SQL Server, gồm các thời điểm sát ranh giới và đúng hạn, xác nhận nhắc nhiều lần, reset khi đang khóa và vai trò được miễn.
+- Toàn bộ backend đạt 126/126 kiểm thử, gồm chu kỳ cấp/reset → đăng nhập → nhắc → khóa → mở lại → đổi mật khẩu qua API trên LocalDB kiểm thử riêng.
+- **Phiên sau — phần 2:** đọc `frontend/admin/src/pages/MachinesPage.tsx`, tách quản lý phiên máy và thao tác file khỏi phần hiển thị Desktop. Nghiệm thu lại chọn máy → đăng nhập một lần → tạo/sửa/lưu file → F5 → đăng xuất, cùng trường hợp đóng tab đã thống nhất.
+
+## 25/11/2026 — tải danh sách máy Employee
+
+- Trang chọn máy hiển thị trạng thái đang tải trong lúc chờ API. Nếu yêu cầu thất bại, nhân viên có thể bấm **Thử lại** ngay tại trang. Thông báo **Chưa có máy khả dụng** chỉ xuất hiện khi máy chủ trả về danh sách rỗng.
+- Đã kiểm tra trên Edge với API thật: hiển thị đủ 4 máy và mở đúng trang đăng nhập của máy đã chọn. Với API giả lập, 11/11 kiểm tra cổng đăng nhập đạt, bao gồm phản hồi chậm, lỗi 503, thử lại thành công và danh sách rỗng. Bộ kiểm thử frontend đạt 40/40 và build thành công.
+
+## Bàn giao 25/11/2026 — luồng Employee
+
+- Từ `/` vào `/employee`, chọn máy và xem tên, mã tài sản trên trang đăng nhập Employee. Một lần đăng nhập mở thẳng Desktop/Documents. Chi tiết máy, phần mềm và tài liệu dùng chung phiên. Từ Yêu cầu hỗ trợ có thể quay về đúng Desktop.
+- Nút Đăng xuất kết thúc phiên ngay, trả về trang đăng nhập của máy vừa dùng. Từ đó chọn **Chọn máy khác** để đổi thiết bị.
+- Theo lựa chọn của chủ đồ án, chỉ tín hiệu rời trang mới bắt đầu đếm 60 giây. F5 khôi phục phiên còn hợp lệ. Đổi tab, thu nhỏ trình duyệt hoặc để máy rảnh không tính là rời trang. Nếu trình duyệt dừng đột ngột trước khi gửi tín hiệu thì hạn gốc tối đa 8 giờ vẫn áp dụng.
+- Đã bỏ form đăng nhập máy trùng, gộp xử lý đăng xuất máy và dọn CSS liên quan. API hồ sơ/file và Agent legacy vẫn có bên sử dụng.
+- LocalDB đã được sao lưu và kiểm tra bản sao trước khi áp dụng migration `EmployeeTabDeparture` (hai cột mới trên bảng phiên).
+
+- Nghiệm thu trên database riêng: 119/119 kiểm thử backend và 40/40 frontend đạt. Edge + SQL Server đạt 10 kiểm tra, gồm tạo/sửa/lưu, PDF/DOCX, F5, mở lại sau khi API khởi động lại và giải phóng máy sau khi đóng tab thật. Database thử đã được dọn.
+- Agent legacy: 46 kiểm thử Python đạt. Windows bỏ qua một ca do thiếu quyền tạo symlink. Luồng tích hợp Edge, SQL Server và Agent thật đạt thêm 8/8 kiểm tra, gồm ghi file trên đĩa và thu hồi quyền sử dụng máy.
+- Việc còn chờ: chuyển một file Agent cũ khi có thư mục nguồn. Giữ nguyên file và dữ liệu liên quan theo quyết định trước đó.
+
+## Yêu cầu gốc cho phân hệ Employee (24/11/2026)
+
+**Phạm vi:** Phân hệ Employee
+**Đường dẫn:** http://127.0.0.1:5173/employee
+**Trạng thái:** Đã triển khai. Kết quả nghiệm thu ở mục bàn giao phía trên.
+**Mức độ ưu tiên:** Cao.
+
+### 1. Hoàn thiện cơ chế quản lý phiên đăng nhập
+
+- Nghiên cứu cơ chế tự động kết thúc phiên đăng nhập ngay khi người dùng đóng tab trình duyệt hoặc sau 1 phút kể từ thời điểm đóng tab.
+- Đề xuất phương án xử lý phù hợp, đảm bảo tính nhất quán giữa phiên đăng nhập và trạng thái sử dụng thiết bị.
+- Đảm bảo phiên đăng nhập không tồn tại không cần thiết sau khi người dùng ngừng sử dụng hệ thống.
+- Chưa cần phân tích hoặc triển khai ngay. Phương án kỹ thuật sẽ được xem xét trong lần phát triển tiếp theo.
+
+### 2. Tái cấu trúc Workflow của phân hệ Employee
+
+**Vấn đề hiện tại:** Workflow còn rườm rà, các giao diện và chức năng chưa được liên kết thống nhất, tồn tại nhiều bước đăng nhập không cần thiết và chưa tích hợp đầy đủ chức năng quản lý file trong môi trường mô phỏng Windows.
+
+**Yêu cầu điều chỉnh:**
+
+- Thiết lập đường dẫn gốc (`/`) tự động chuyển hướng đến phân hệ Employee (`/employee`).
+- Cho phép người dùng lựa chọn thiết bị trước khi đăng nhập.
+- Sử dụng trang đăng nhập chính của phân hệ Employee, không sử dụng trang đăng nhập riêng nằm bên trong Machine.
+- Tái sử dụng giao diện đăng nhập hiện đang xuất hiện sau khi người dùng đăng xuất khỏi thiết bị, đưa giao diện này vào ngay sau bước lựa chọn thiết bị.
+- Hiển thị thông tin thiết bị đã chọn trên giao diện đăng nhập.
+- Sau khi đăng nhập thành công, chuyển trực tiếp đến môi trường làm việc mô phỏng Windows.
+- Tích hợp chức năng mô phỏng tạo, chỉnh sửa, xóa, lưu trữ và quản lý file trực tiếp trong môi trường làm việc.
+- Loại bỏ yêu cầu đăng nhập lần thứ hai khi truy cập môi trường mô phỏng hoặc chức năng quản lý file.
+- Khi người dùng đăng xuất, quay trở lại giao diện đăng nhập chính tương ứng với thiết bị đang sử dụng.
+- Hợp nhất các giao diện, chức năng và cơ chế xác thực thành một Workflow thống nhất.
+
+**Workflow mong muốn:**
+
+```text
+Truy cập hệ thống (/)
+        ↓
+Phân hệ Employee (/employee)
+        ↓
+Lựa chọn thiết bị
+        ↓
+Trang đăng nhập chính của Employee
+(Kèm thông tin thiết bị đã chọn)
+        ↓
+Xác thực tài khoản nhân viên
+        ↓
+Môi trường làm việc mô phỏng Windows
+(Tích hợp chức năng quản lý file)
+        ↓
+Đăng xuất
+        ↓
+Quay lại trang đăng nhập chính
+```
+
+**Nguyên tắc:** Chỉ sử dụng một quy trình đăng nhập thống nhất, không yêu cầu xác thực lại khi chuyển đổi giữa các chức năng trong cùng một phiên làm việc.
+
+### 3. Dọn dẹp và tái cấu trúc mã nguồn
+
+Sau khi hoàn thành các yêu cầu trên, tiến hành rà soát và dọn dẹp mã nguồn liên quan trên toàn bộ hệ thống.
+
+**Frontend (React/TypeScript):**
+
+- Loại bỏ các component, page, route, giao diện và hàm xử lý không còn được sử dụng.
+- Loại bỏ các giao diện đăng nhập và chức năng bị trùng lặp.
+- Tái sử dụng các component và logic xử lý hiện có khi phù hợp.
+
+**Backend (ASP.NET Core):**
+
+- Rà soát các API, Controller, Service và logic nghiệp vụ liên quan đến phân hệ Employee.
+- Loại bỏ các API và chức năng dư thừa sau khi hợp nhất Workflow.
+- Đảm bảo tính nhất quán giữa cơ chế xác thực, phiên đăng nhập và quản lý thiết bị.
+
+**Python Agent:**
+
+- Rà soát cấu trúc thư mục, module, script, class và các hàm xử lý hiện có.
+- Loại bỏ những cấu trúc Python không còn cần thiết hoặc không còn phù hợp với kiến trúc hiện tại.
+- Loại bỏ các đoạn mã trùng lặp, chức năng dư thừa và thư viện không còn được sử dụng.
+- Đảm bảo không ảnh hưởng đến các chức năng cần thiết của Agent thật và Agent mô phỏng.
+
+**Nguyên tắc dọn dẹp:**
+
+- Kiểm tra các mối phụ thuộc trước khi xóa mã nguồn.
+- Ưu tiên tái sử dụng mã nguồn thay vì xây dựng lại các chức năng đã có.
+- Không duy trì song song Workflow cũ và Workflow mới khi không còn cần thiết.
+- Không làm ảnh hưởng đến các chức năng đang hoạt động ổn định.
+
+### 4. Kiểm thử và nghiệm thu
+
+- Kiểm thử toàn bộ Workflow của phân hệ Employee.
+- Kiểm tra cơ chế đăng nhập, đăng xuất và tự động kết thúc phiên.
+- Kiểm tra chức năng mô phỏng Windows và quản lý file.
+- Kiểm tra sự tương tác giữa Frontend, Backend, Database và Python Agent.
+- Xác nhận hệ thống hoạt động ổn định sau khi dọn dẹp mã nguồn.
+
+### 5. Điều kiện tiếp tục phát triển
+
+Chỉ tiếp tục phát triển các chức năng mới sau khi toàn bộ nhiệm vụ trên đã được hoàn thành, kiểm thử và xác nhận hoạt động ổn định.
+
+Trong giai đoạn này, ưu tiên hoàn thiện kiến trúc, đơn giản hóa Workflow và nâng cao chất lượng mã nguồn thay vì mở rộng thêm chức năng.
+
+**Cập nhật gần nhất:** 25/11/2026 — giờ Việt Nam.
 **Mốc hiện tại — danh mục App/Service:** Đã nối thêm hàng loạt cho một hoặc nhiều máy và xác nhận xóa ngay trên máy nhân viên. Mục trùng tên và phân loại trên cùng máy được bỏ qua, giữ nguyên thông tin cũ. Đã nghiệm thu 118/118 backend, 40/40 frontend, build frontend và 3 kịch bản Edge. Bước tiếp theo là chuyển file Agent cũ khi có thư mục nguồn.
 **Mốc 23/11 (đêm) — Bảo mật đường dẫn App/Service:** Employee xem danh sách phần mềm (Tên, Phiên bản, Phân loại, Lỗ hổng, Lần dùng gần nhất) nhưng `FilePath` bị loại bỏ (null) ở tầng API `GET /api/machines/{id}/information` và ẩn hoàn toàn cột đường dẫn trên giao diện `MachineWorkspace.tsx`. Admin vẫn giữ đầy đủ `FilePath` qua `GET /api/assets/{id}/specification` và modal Cấu hình mô phỏng. Backend **108/108 PASS**, frontend **38/38 PASS**, frontend build PASS, browser smoke `machine-workspace.cjs` PASS (xác minh không còn cột `Đường dẫn (chỉ hiển thị)`).
 **Mốc 23/11 (tối) — Ticket cơ bản:** Employee gửi và theo dõi yêu cầu tại `/employee/tickets`; Admin xử lý tại `/admin/tickets`. Luồng `Open → InProgress → Resolved → Closed`, comment công khai/ghi chú nội bộ; Employee chỉ thấy ticket của mình, Admin thấy tất cả, Technician (chưa có UI theo quyết định user) chỉ thấy ticket được giao ở tầng API. Backend **108/108 PASS**, frontend **38/38 PASS**, build PASS, browser smoke PASS và E2E thật PASS trên database GUID riêng (đã xóa sau kiểm thử).

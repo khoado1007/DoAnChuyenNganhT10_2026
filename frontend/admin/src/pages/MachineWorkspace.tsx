@@ -41,7 +41,8 @@ export default function MachineWorkspace({ session, children }: { session: Devic
       </div>
     </Card>
     {error && <Alert type="error" showIcon message={error} action={<Button onClick={() => setAttempt(value => value + 1)}>Thử lại</Button>} />}
-    <Tabs defaultActiveKey="details" items={[
+    <Tabs defaultActiveKey="files" items={[
+      { key: 'files', label: 'Desktop / Documents', children },
       { key: 'details', label: 'Chi tiết', children: <Card loading={loading}><Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }} items={Object.entries({ ...assetLabels, ...specificationLabels }).map(([key, label]) => {
         const value = information?.[key as keyof MachineInformation];
         return { key, label, children: key.endsWith('At') ? displayDate(value) : key === 'status' ? statusLabels[String(value)] ?? displayValue(value) : displayValue(value) };
@@ -57,7 +58,6 @@ export default function MachineWorkspace({ session, children }: { session: Devic
           { title: 'Thao tác', key: 'actions', render: (_, item) => <Button disabled={!item.id || !information?.revision || loading} onClick={() => setRemoving({ item, revision: information!.revision! })}>Yêu cầu xóa</Button> },
         ]} />
       </Card> },
-      { key: 'files', label: 'Desktop / Documents', children },
     ]} />
     {removing && <RemoveSoftwareModal key={`${session.sessionId}:${removing.item.id}`} session={session} item={removing.item} revision={removing.revision} onClose={() => setRemoving(null)} onReload={() => { setRemoving(null); setAttempt(value => value + 1); }} onRemoved={value => { setInformation(value); setRefreshedAt(new Date().toISOString()); setRemoving(null); }} />}
   </>;

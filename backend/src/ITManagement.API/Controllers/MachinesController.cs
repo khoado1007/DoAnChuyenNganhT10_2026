@@ -15,6 +15,16 @@ public sealed class MachinesController(IDeviceSessionService sessions, IProfileO
     [HttpPost("{id:guid}/sessions"), Authorize(Roles = "Employee")]
     public async Task<IActionResult> Start(Guid id, CancellationToken ct) => Ok(ApiResponse<object>.Ok(await sessions.StartAsync(id, ct)));
 
+    public sealed record PageEvent(long Sequence, bool Leaving);
+
+    [HttpPost("{id:guid}/page"), Authorize(Roles = "Employee")]
+    public async Task<IActionResult> PageState(Guid id, [FromHeader(Name = "X-Device-Session")] Guid sessionId,
+        [FromBody] PageEvent change, CancellationToken ct)
+    {
+        await sessions.UpdatePageAsync(id, sessionId, change.Sequence, change.Leaving, ct);
+        return NoContent();
+    }
+
     [HttpPost("{id:guid}/logout"), Authorize(Roles = "Employee")]
     public async Task<IActionResult> Logout(Guid id, [FromHeader(Name = "X-Device-Session")] Guid sessionId, CancellationToken ct)
     {

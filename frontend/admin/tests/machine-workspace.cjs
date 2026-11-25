@@ -20,14 +20,17 @@ const base = process.env.UI_BASE_URL || 'http://127.0.0.1:5173';
       if (path.endsWith('/specification') && route.request().method() === 'PUT') savedSpecification = route.request().postDataJSON();
       if (path.endsWith('/information')) { informationCalls++; assert.equal(route.request().headers()['x-device-session'], session.sessionId); }
       const data = path.endsWith('/auth/login') ? { accessToken: 'fixture-token', user } : path.endsWith('/auth/me') ? user
-        : path === '/api/machines' ? [{ id: 'pc-1', assetCode: 'PC-001', name: session.deviceName, mode: 'simulated' }]
+        : path === '/api/me/assets' ? [] : path.startsWith('/api/tickets') ? {items:[],totalCount:0} : path === '/api/machines' ? [{ id: 'pc-1', assetCode: 'PC-001', name: session.deviceName, mode: 'simulated' }]
         : path.endsWith('/profiles') ? [{ profileId: 'server-profile', username: 'server-user', deviceName: 'Máy server', storageBackend: 'Server', maxFiles: 10, usedFiles: 1 }, { profileId: 'agent-profile', username: 'agent-user', deviceName: 'Máy cũ', storageBackend: 'Agent', maxFiles: 10, usedFiles: 1, pendingState: 'Unknown' }]
         : path.endsWith('/assets/search') ? { items: [{ id: 'pc-1', assetCode: 'PC-001', name: session.deviceName, type: 'Desktop', status: 'Available' }], totalCount: 1 }
         : path.endsWith('/specification') || path.endsWith('/information') ? info : path.endsWith('/sessions') ? session : path.endsWith('/profile') || path.endsWith('/operations') ? profile : {};
       return route.fulfill({ json: { success: true, data } });
     });
-    await page.goto(base + '/employee');
+    await page.goto(base);
+    await page.waitForURL('**/employee');
     await page.getByRole('button', { name: 'Chọn máy →' }).click();
+    await page.getByRole('heading', {name: session.deviceName}).waitFor();
+    await page.getByText('PC-001', {exact:true}).waitFor();
     assert.equal(logins, 0);
     await page.getByLabel('Domain ID').fill('fixture');
     await page.getByLabel('Mật khẩu', { exact: true }).fill('fixture-only');
@@ -38,6 +41,8 @@ const base = process.env.UI_BASE_URL || 'http://127.0.0.1:5173';
     await page.getByText('256 / 512 GB', { exact: true }).waitFor();
     fs.mkdirSync('artifacts/machine-workspace', { recursive: true });
     await page.screenshot({ path: 'artifacts/machine-workspace/overview-desktop.png', fullPage: true, animations: 'disabled' });
+    await page.getByRole('button', {name: 'Tạo TXT/CSV'}).waitFor();
+    await page.getByRole('tab', { name: 'Chi tiết', exact: true }).click();
     denyInformation = true;
     await page.getByRole('button', { name: 'Làm mới thông tin', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'Phiên không còn quyền' }).waitFor();
@@ -62,8 +67,23 @@ const base = process.env.UI_BASE_URL || 'http://127.0.0.1:5173';
     await page.screenshot({ path: 'artifacts/machine-workspace/overview-mobile.png', fullPage: true, animations: 'disabled' });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole('button', { name: 'Đăng xuất / Đổi máy' }).click();
+    await page.waitForURL('**/machines/pc-1/login');
+    await page.getByRole('heading', {name: session.deviceName}).waitFor();
+    await page.getByRole('button', {name:'Chọn máy khác'}).click();
     await page.locator('.machine-chooser').waitFor();
     assert.equal(await page.evaluate(() => sessionStorage.getItem('itdesk.accessToken')), null);
+    // Direct links to the support portal can already have an authenticated Employee.
+    await page.goto(base + '/employee/tickets');
+    await page.getByLabel('Tên đăng nhập', {exact:true}).fill('fixture');
+    await page.getByLabel('Mật khẩu', {exact:true}).fill('fixture-only');
+    await page.locator('button[type=submit]').click();
+    await page.getByRole('link', {name:'Chọn máy làm việc'}).click();
+    await page.getByRole('button', {name:'Chọn máy →'}).click();
+    await page.getByRole('button', {name:'Mở Desktop'}).click();
+    await page.getByRole('button', {name:'Tạo TXT/CSV'}).waitFor();
+    assert.equal(logins, 2);
+    await page.getByRole('button', {name:'Đăng xuất / Đổi máy'}).click();
+    await page.waitForURL('**/machines/pc-1/login');
     user.role = 'Admin';
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(base + '/admin/assets');

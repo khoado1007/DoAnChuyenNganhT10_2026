@@ -1,6 +1,6 @@
 import { lazy, useEffect, useState } from 'react';
 import { Alert, Button, Result, Spin } from 'antd';
-import { clearSession, getCurrentUser, getToken, sessionExpiredEvent } from './api/auth';
+import { clearSession, deviceSessions, reportMachinePage, endMachineSession, getCurrentUser, getToken, sessionExpiredEvent } from './api/auth';
 import { ApiError } from './api/client';
 import type { UserResponse } from './types/auth';
 import LoginPage from './pages/LoginPage';
@@ -17,6 +17,7 @@ export default function App() {
   const [checking, setChecking] = useState(Boolean(getToken()));
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [sessionVersion, setSessionVersion] = useState(0);
   const [path, setPath] = useState(window.location.pathname);
   useEffect(() => {
     const changed = (event: Event) => { setUser((event as CustomEvent<UserResponse | null>).detail); setError(''); setChecking(false); };
@@ -31,11 +32,16 @@ export default function App() {
   }
 
   // Giữ đúng cổng đăng nhập theo URL hiện tại sau khi kết thúc phiên.
-  function logout() {
+  async function logout() {
+    const saved = deviceSessions.read();
+    if (saved && getToken()) {
+      try { await endMachineSession(saved); }
+      catch (cause) { if (!(cause instanceof ApiError && [401,403].includes(cause.status))) { setError('Chưa thể đăng xuất máy. Vui lòng thử lại.'); return; } }
+    }
     clearSession();
     setUser(null);
     setError('');
-    navigate(isAdminPath(path) ? '/admin' : anonymousLandingPath, true);
+    navigate(saved ? `/machines/${saved.deviceId}/login` : isAdminPath(path) ? '/admin' : anonymousLandingPath, true);
   }
   useEffect(() => {
     // Đồng bộ đường dẫn khi người dùng dùng nút quay lại hoặc tiến tới của trình duyệt.
@@ -44,8 +50,15 @@ export default function App() {
     return () => window.removeEventListener('popstate', changed);
   }, []);
   useEffect(() => {
-    if (path === '/' && !checking && !user) navigate(anonymousLandingPath, true);
-  }, [path, checking, user]);
+    if (path === '/') navigate(anonymousLandingPath, true);
+  }, [path]);
+  useEffect(() => {
+    const leavePage = () => { void reportMachinePage(true).catch(() => {}); };
+    const returnToPage = (event: PageTransitionEvent) => { if (event.persisted && deviceSessions.read()) window.location.reload(); };
+    window.addEventListener('pagehide', leavePage);
+    window.addEventListener('pageshow', returnToPage);
+    return () => { window.removeEventListener('pagehide', leavePage); window.removeEventListener('pageshow', returnToPage); };
+  }, []);
   useEffect(() => {
     // Đưa người đã đăng nhập ở trang gốc hoặc trang đăng nhập về trang chủ theo vai trò.
     if (user && ['/login', '/login/'].includes(path)) navigate(homeForRole(user.role), true);
@@ -54,10 +67,11 @@ export default function App() {
     const controller = new AbortController();
     // Kết thúc phiên hiển thị ngay khi API thông báo token hiện tại không còn hợp lệ.
     const expired = () => {
+      setSessionVersion(value => value + 1);
       setUser(null);
       setError('');
       const currentPath = window.location.pathname;
-      navigate(currentPath.startsWith('/machines') ? '/machines' : isAdminPath(currentPath) ? '/admin' : anonymousLandingPath, true);
+      navigate(currentPath.startsWith('/machines/') ? `/machines/${currentPath.split('/')[2]}/login` : isAdminPath(currentPath) ? '/admin' : anonymousLandingPath, true);
     };
     window.addEventListener(sessionExpiredEvent, expired);
     // Khôi phục hồ sơ bằng token hiện tại; bỏ qua kết quả cũ nếu phiên đã đổi hoặc yêu cầu bị hủy.
@@ -65,7 +79,18 @@ export default function App() {
       const restoringToken = getToken();
       if (!restoringToken) { setChecking(false); return; }
       setChecking(true); setError('');
-      try { const restored = await getCurrentUser(controller.signal); if (!controller.signal.aborted && getToken() === restoringToken) setUser(restored); }
+      try {
+        const saved = deviceSessions.read();
+        if (saved && !isMachinePath(window.location.pathname)) {
+          try { await reportMachinePage(false); }
+          catch (cause) {
+            if (cause instanceof ApiError && cause.status === 403) {
+              clearSession(); setUser(null); navigate(`/machines/${saved.deviceId}/login`, true); return;
+            }
+            throw cause;
+          }
+        }
+        const restored = await getCurrentUser(controller.signal); if (!controller.signal.aborted && getToken() === restoringToken) setUser(restored); }
       catch (cause) {
         if (controller.signal.aborted) return;
         if (cause instanceof ApiError && cause.status === 401) setUser(null);
@@ -75,12 +100,12 @@ export default function App() {
     void restoreSession();
     return () => { controller.abort(); window.removeEventListener(sessionExpiredEvent, expired); };
   }, [attempt]);
-  if (isMachinePath(path)) return <MachinesPage path={path} navigate={navigate} />;
+  if (isMachinePath(path)) return <MachinesPage key={sessionVersion} path={path} navigate={navigate} user={user} onUserChange={setUser} />;
   if (checking) return <div className="session-loading"><Spin size="large" /><p>Đang kiểm tra phiên đăng nhập…</p></div>;
   if (error) return <div className="session-loading"><Alert type="error" showIcon message={error} /><Button onClick={() => setAttempt(value => value + 1)}>Thử lại</Button><Button type="text" onClick={logout}>Về đăng nhập</Button></div>;
   if (!user) return <LoginPage isAdminRoute={isAdminPath(path)} onLogin={value => { setUser(value); navigate(destinationAfterLogin(path, value.role), true); }} />;
   const route = resolveRoute(['/', '/login', '/login/'].includes(path) ? homeForRole(user.role) : path, user.role);
   if (route.kind === 'forbidden' || route.kind === 'not-found') return <Result status={route.kind === 'forbidden' ? '403' : '404'} title={route.kind === 'forbidden' ? 'Bạn không có quyền truy cập khu vực này' : 'Không tìm thấy trang'} extra={<><Button onClick={() => navigate(homeForRole(user.role), true)}>Về trang của tôi</Button><Button onClick={logout}>Đăng xuất</Button></>} />;
   if (route.kind === 'admin') return <AdminPreviewPage user={user} onLogout={logout} section={route.section} setSection={section => navigate(section === 'overview' ? '/admin' : `/admin/${section}`)} />;
-  return <PortalPage user={user} onLogout={logout} />;
+  return <PortalPage user={user} onLogout={logout} navigate={navigate} />;
 }

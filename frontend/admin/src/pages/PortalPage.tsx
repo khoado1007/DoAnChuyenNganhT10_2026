@@ -1,10 +1,13 @@
+import { deviceSessions } from '../api/auth';
 import MyAssets from './MyAssets';
 import EmployeeTickets from './EmployeeTickets';
 import TechnicianTickets from './TechnicianTickets';
 import { Button, Card, Descriptions, Typography } from 'antd';
 import type { UserResponse } from '../types/auth';
 /** Hiển thị hồ sơ và các chức năng cổng thông tin phù hợp với vai trò. */
-export default function PortalPage({ user, onLogout }: { user: UserResponse; onLogout: () => void }) {
+export default function PortalPage({ user, onLogout, navigate }: { user: UserResponse; onLogout: () => void; navigate: (path:string) => void }) {
+  const saved = deviceSessions.read();
+  const machinePath = saved ? `/machines/${saved.deviceId}/desktop` : "/employee";
   return <main className="page-content" style={{ maxWidth: 1000, margin: '0 auto' }}>
     <div className="portal-brand"><img src="/brand/stu-logo.png" alt="STU" /><span>IT <b>Desk</b><small>HỆ THỐNG QUẢN LÝ CNTT</small></span></div>
     <div className="page-heading"><Typography.Title level={1}>{user.role === 'Employee' ? 'Cổng nhân viên' : 'Cổng kỹ thuật viên'}</Typography.Title><Button onClick={onLogout}>Đăng xuất</Button></div>
@@ -18,10 +21,10 @@ export default function PortalPage({ user, onLogout }: { user: UserResponse; onL
     {user.role === 'Employee' && <>
       <Card title="Máy làm việc của tôi" style={{ marginTop: 16 }}>
         <Typography.Paragraph>
-          Chọn máy công ty, sau đó đăng nhập bằng Domain ID để mở Desktop và Documents của bạn.
+          {saved ? "Phiên làm việc trên máy đã chọn đang mở." : "Chọn máy công ty để mở Desktop và Documents của bạn."}
           Tài liệu và quota được lưu riêng theo từng tài khoản và từng máy.
         </Typography.Paragraph>
-        <Button type="primary" href="/machines">Chọn máy làm việc</Button>
+        <Button type="primary" href={machinePath} onClick={event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {event.preventDefault(); navigate(machinePath);} }}>{saved ? "Trở về Desktop" : "Chọn máy làm việc"}</Button>
       </Card>
       <MyAssets />
       <EmployeeTickets />

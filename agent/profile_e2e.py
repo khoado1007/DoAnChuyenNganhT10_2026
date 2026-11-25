@@ -205,7 +205,7 @@ def run_suite(args, suite: str, sql_server: str) -> dict:
         env.update(ConnectionStrings__DefaultConnection=(
             f'Server={sql_server};Initial Catalog={database};Integrated Security=True;'
             'Encrypt=False;Pooling=True;Connect Timeout=10'),
-            Database__InitializeOnStartup='true', SeedAdmin__Password=password,
+            Database__InitializeOnStartup='true', SeedAdmin__Password=password, Simulation__UseAgent='true',
             ASPNETCORE_ENVIRONMENT='Development', ASPNETCORE_URLS=server,
             Jwt__Secret=secrets.token_urlsafe(48), Jwt__Issuer='LiveTest', Jwt__Audience='LiveTest',
             FileStorage__RootPath=str(artifact / 'api-storage'),

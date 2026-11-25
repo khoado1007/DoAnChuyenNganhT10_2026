@@ -30,6 +30,10 @@ public sealed class DeviceSession
     public int SecurityVersion { get; set; }
     public DateTime ExpiresAt { get; set; }
     public DateTime? EndedAt { get; set; }
+    public long PageSequence { get; set; }
+    public DateTime? TabClosesAt { get; set; }
+
+    public bool IsExpired(DateTime now) => ExpiresAt <= now || TabClosesAt <= now;
 }
 
 public sealed class ProfileFile
