@@ -1,16 +1,17 @@
 # Chạy đồ án trên Windows với SQL Server LocalDB
 
-## Luồng chính — cập nhật 17/11/2026
+## Luồng chính — cập nhật 26/11/2026
 
 Luồng mô phỏng web **không cần Python Agent, enrollment token hoặc quyền riêng từng máy**. API mặc định `Simulation:UseAgent=false`. Admin tạo/kích hoạt Employee và thêm máy Desktop/Laptop/Server ở trạng thái Sẵn sàng hoặc Đã bàn giao. Mọi Employee active được đăng nhập các máy này.
 
 1. Admin vào `/admin` → Tài khoản để tạo Employee; Tài sản để thêm máy, mở **Cấu hình mô phỏng** nhập thông số/phần mềm. Dữ liệu chưa nhập hiển thị “Chưa khai báo”.
 2. Employee mở `/` hoặc `/employee` → chọn máy → xem tên, mã máy → đăng nhập một lần → mở ngay Desktop/Documents. Chi tiết máy và Phần mềm nằm cùng màn hình. Không có quyền sửa cấu hình máy.
-3. Trong Desktop/Documents: tạo/sửa TXT/CSV, nhập Office/PDF, đổi tên/di chuyển/sao chép/xóa/khôi phục. Mặc định 10 file/profile; quản trị chỉnh ở Quota.
+3. Trong **Desktop/Documents**, Employee làm việc với file của mình trên máy đã chọn. Hạn mức mặc định là 10 file trên tất cả máy. Admin có thể chỉnh trong **Quota tài khoản**.
+4. Mở **Chi tiết** để xem danh sách và lịch sử thay đổi file của những người đã dùng máy này. Mở **Phần mềm** để xem ứng dụng và dịch vụ do Admin khai báo.
 
 File lưu thật trên server: mặc định `backend/src/ITManagement.API/storage/simulation` khi chạy API từ project này; có thể đặt `Simulation__StorageRoot` thành đường dẫn tuyệt đối riêng. Blob dùng GUID, tách theo máy/người/profile; tên và thư mục Desktop/Documents/RecycleBin lưu trong SQL. Không dùng đường dẫn phần mềm trong bảng Software để mở file trên server. Nội dung nằm ngoài web root, chỉ đọc qua phiên hợp lệ. Phiên bản blob cũ/orphan được giữ, chưa có tác vụ tự dọn; cần sao lưu cả DB và kho file.
 
-Migration mới: `20261116145149_ServerSimulation` chỉ thêm cột/bảng. Sao lưu DB trước khi áp dụng; không xóa/reseed dữ liệu. Profile Agent cũ được đánh dấu `Agent` và không tự đổi sang `Server`. Người dùng chọn giữ file cũ, chuyển sau; profile Agent cũ và profile Server mới được giữ riêng cho cùng người–máy, nên dữ liệu cũ không chặn đăng nhập mới. File Agent cũ chưa xuất hiện trong Desktop/Documents mới cho đến khi chuyển nội dung. Migration SeparateServerAndAgentProfiles đổi khóa duy nhất theo người–máy–backend; không downgrade khi đã có cả hai profile nếu chưa có kế hoạch gộp dữ liệu.
+Migration `ServerSimulation` bổ sung kho server và cấu hình máy. `SeparateServerAndAgentProfiles` tạo hồ sơ riêng theo người–máy–backend. Mỗi người dùng mở hồ sơ Server của mình trong luồng web hiện tại. Các bản ghi Agent cũ được giữ để tra cứu lịch sử. Hạng mục chuyển một file Agent cũ đã được chủ đồ án khép lại theo quyết định bỏ qua ngày 26/11/2026.
 
 Kiểm thử SQL + trình duyệt không Agent (DB GUID riêng, cổng5189/5190, tự cleanup):
 
@@ -24,7 +25,7 @@ Python ở lệnh trên chỉ điều phối kiểm thử; không cần Python �
 
 Đăng xuất trả về màn hình đăng nhập của cùng máy. Bấm **Chọn máy khác** để đổi thiết bị. Khi tab báo rời trang, máy chủ chờ 60 giây. F5 hoặc quay lại trong thời gian này sẽ khôi phục phiên còn hợp lệ. Nếu trình duyệt bị buộc tắt hoặc mất mạng trước khi gửi tín hiệu, phiên máy hết hạn theo hạn gốc (tối đa 8 giờ). Để tab mở ở nền không kích hoạt đếm ngược.
 
-Đối với database hiện có, sao lưu rồi áp dụng migration `EmployeeTabDeparture` một lần trước khi chạy API mới. Migration thêm hai cột theo dõi tab vào bảng phiên máy.
+Đối với database hiện có, sao lưu rồi cập nhật đến migration `AccountFileQuota` trước khi chạy API mới. Với tài khoản từng có nhiều hạn mức khác nhau, migration dùng hạn mức thấp nhất. Số file đang có được giữ nguyên.
 
 ## Môi trường
 - Chạy ứng dụng: .NET SDK hỗ trợ net10.0, Node.js/npm. Python3.11+ chỉ cần cho bộ kiểm thử hoặc Agent legacy.
@@ -130,4 +131,4 @@ Các file `backend/docker-compose.yml`, Dockerfile và test reverse-proxy cổng
 - [Lịch sử nghiệm thu và demo Agent](legacy/README.md): giữ để tra cứu, không phải hướng dẫn demo hiện tại.
 - [Python Agent](agent/README.md): phần mở rộng cũ, không cần chạy cho mô phỏng web.
 - Storage cũ theo quota byte vẫn được giữ cùng dữ liệu/API. Luồng mới dùng profile theo người–máy và quota số file; chưa hợp nhất hay xóa storage cũ.
-- File Agent cũ được giữ nguyên theo lựa chọn của người dùng; chỉ chuyển khi có đúng thư mục nguồn.
+- Hạng mục chuyển file Agent cũ đã khép lại theo quyết định bỏ qua ngày 26/11/2026.

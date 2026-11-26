@@ -108,7 +108,7 @@ public sealed class DeviceSessionService(AppDbContext db, ICurrentUserService cu
         var profile = await db.LocalProfiles.SingleOrDefaultAsync(x => x.AssetId == assetId && x.UserId == userId && x.StorageBackend == backend, ct);
         if (profile is null)
         {
-            profile = new LocalProfile { AssetId = assetId, UserId = userId, CreatedAt = Now, StorageBackend = backend };
+            profile = new LocalProfile { AssetId = assetId, UserId = userId, MaxFiles = user.FileCountLimit, CreatedAt = Now, StorageBackend = backend };
             db.LocalProfiles.Add(profile);
         }
         var session = new DeviceSession { AssetId = assetId, UserId = userId, ProfileId = profile.Id,

@@ -36,6 +36,11 @@ public sealed class MachinesController(IDeviceSessionService sessions, IProfileO
     public async Task<IActionResult> GetProfile(Guid id, [FromHeader(Name = "X-Device-Session")] Guid sessionId, CancellationToken ct)
         => Ok(ApiResponse<ProfileSnapshot>.Ok(await profiles.GetProfileSnapshotAsync(id, sessionId, ct)));
 
+    [HttpGet("{id:guid}/file-details"), Authorize(Roles = "Employee")]
+    public async Task<IActionResult> FileDetails(Guid id, [FromHeader(Name = "X-Device-Session")] Guid sessionId,
+        CancellationToken ct, [FromQuery] int filesPage = 1, [FromQuery] int historyPage = 1)
+        => Ok(ApiResponse<MachineFileDetails>.Ok(await profiles.GetMachineFileDetailsAsync(id, sessionId, filesPage, historyPage, ct)));
+
     [HttpPost("{id:guid}/files/operations"), Authorize(Roles = "Employee"), RequestSizeLimit(12 * 1024 * 1024)]
     public async Task<IActionResult> Operate(Guid id, [FromHeader(Name = "X-Device-Session")] Guid sessionId, [FromBody] FileActionRequest request, CancellationToken ct)
         => Ok(ApiResponse<ProfileSnapshot>.Ok(await profiles.ExecuteOperationAsync(id, sessionId, request, ct)));

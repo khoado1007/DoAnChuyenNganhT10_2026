@@ -22,7 +22,7 @@ export default function PortalPage({ user, onLogout, navigate }: { user: UserRes
       <Card title="Máy làm việc của tôi" style={{ marginTop: 16 }}>
         <Typography.Paragraph>
           {saved ? "Phiên làm việc trên máy đã chọn đang mở." : "Chọn máy công ty để mở Desktop và Documents của bạn."}
-          Tài liệu và quota được lưu riêng theo từng tài khoản và từng máy.
+          Tài liệu của bạn nằm trên máy đã lưu. Quota được tính chung cho tài khoản trên tất cả máy.
         </Typography.Paragraph>
         <Button type="primary" href={machinePath} onClick={event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {event.preventDefault(); navigate(machinePath);} }}>{saved ? "Trở về Desktop" : "Chọn máy làm việc"}</Button>
       </Card>

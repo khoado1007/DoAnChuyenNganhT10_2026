@@ -46,7 +46,7 @@ public sealed partial class ProfileOperationService
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         // Same order as session login: asset -> user -> profile. Revocation cannot race a committed file operation.
         await db.Assets.FromSqlInterpolated($"SELECT * FROM assets WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {assetId}").AsNoTracking().SingleOrDefaultAsync(ct);
-        await db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {userId}").AsNoTracking().SingleOrDefaultAsync(ct);
+        await LockQuotaOwnerAsync(userId, ct);
         var (session, profile, user, asset) = await ValidateSessionAsync(assetId, sessionId, ct);
         await db.LocalProfiles.FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {profile.Id}").SingleAsync(ct);
         await db.Entry(profile).ReloadAsync(ct);
@@ -63,8 +63,7 @@ public sealed partial class ProfileOperationService
         if (await db.ProfileOperations.AnyAsync(o => o.ProfileId == profile.Id && o.CompletedAt == null, ct))
             throw new SimulationException(409, "OPERATION_IN_PROGRESS", "Có thao tác lưu trữ cũ chưa được xác nhận.");
         var files = await db.ProfileFiles.Where(f => f.ProfileId == profile.Id).ToListAsync(ct);
-        var used = files.Count(f => f.Folder is "Desktop" or "Documents");
-        if (request.Kind is "create" or "copy" or "restore" && used >= profile.MaxFiles)
+        if (request.Kind is "create" or "copy" or "restore" && (await AccountQuotaAsync(userId, ct)).RemainingFiles == 0)
             throw new SimulationException(409, "FILE_COUNT_QUOTA_EXCEEDED", "Đã đạt giới hạn số file.");
         var storage = new ServerProfileStorage(configuration);
         string? content = null;
@@ -113,7 +112,7 @@ public sealed partial class ProfileOperationService
                 // Independent metadata may share immutable bytes; later writes create a new blob.
                 await storage.ReadAsync(assetId, userId, profile.Id, file!.StorageKey, ct);
                 var copy = new ProfileFile { Id = Guid.NewGuid(), ProfileId = profile.Id, Name = name, Folder = folder, Extension = Path.GetExtension(name).ToLowerInvariant(), SizeBytes = file.SizeBytes, StorageKey = file.StorageKey };
-                db.ProfileFiles.Add(copy); files.Add(copy); break;
+                db.ProfileFiles.Add(copy); files.Add(copy); file = copy; break;
             }
             case "delete":
                 // Distinguish equal names from different original folders in the recycle bin.
@@ -124,7 +123,8 @@ public sealed partial class ProfileOperationService
         profile.Ready = true;
         profile.UsedFiles = files.Count(f => f.Folder is "Desktop" or "Documents");
         var op = new ProfileOperation { Id = Guid.NewGuid(), RequestId = request.RequestId, ProfileId = profile.Id, SessionId = session.Id,
-            AgentId = Guid.Empty, Kind = request.Kind, State = "Completed", RequestHash = hash, CreatedAt = Now, ExpiresAt = Now, CompletedAt = Now };
+            AgentId = Guid.Empty, Kind = request.Kind, FileName = request.Kind == "read" ? null : file?.Name,
+            State = "Completed", RequestHash = hash, CreatedAt = Now, ExpiresAt = Now, CompletedAt = Now };
         db.ProfileOperations.Add(op);
         if (request.Kind is not ("list" or "read" or "ensure"))
             db.AppAuditEvents.Add(new AppAuditEvent { ActorId = userId, Action = AuditAction(request.Kind), ResourceId = op.Id, CreatedAt = Now });

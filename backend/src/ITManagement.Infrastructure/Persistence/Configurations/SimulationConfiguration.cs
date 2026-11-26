@@ -47,6 +47,7 @@ public sealed class SimulationConfiguration : IEntityTypeConfiguration<LocalProf
         b.HasIndex(x => new { x.ProfileId, x.RequestId }).IsUnique();
         b.HasIndex(x => x.ProfileId).IsUnique().HasFilter("\"CompletedAt\" IS NULL");
         b.Property(x => x.State).HasMaxLength(24); b.Property(x => x.Kind).HasMaxLength(24);
+        b.Property(x => x.FileName).HasMaxLength(512);
         b.Property(x => x.RequestHash).HasMaxLength(64); b.Property(x => x.ErrorCode).HasMaxLength(64);
         b.HasOne<LocalProfile>().WithMany().HasForeignKey(x => x.ProfileId).OnDelete(DeleteBehavior.Restrict);
     }

@@ -5,7 +5,7 @@ import type { MachineProfile, ProfileFile } from '../api/machines.ts';
 import { createUuid } from '../utils/uuid.ts';
 
 type DemoFile = ProfileFile & { content: string };
-type Profile = { id: string; userId: string; deviceId: string; maxFiles: number; files: DemoFile[]; trash: DemoFile[] };
+type Profile = { id: string; userId: string; deviceId: string; files: DemoFile[]; trash: DemoFile[] };
 type Session = { id: string; userId: string; deviceId: string; profileId: string };
 type Assignment = { id: string; assetId: string; userId: string; username: string; status: string; assignedAt: string; assignedBy: string; notes: string; returnedAt: string | null; closedBy: string | null; closeNotes: string | null };
 type DemoTicket = {
@@ -42,6 +42,10 @@ export function createDemoFetch(): typeof fetch {
   };
   const approvalAttempts = new Map<string, number[]>();
   const profiles: Profile[] = [];
+  const limits = new Map<string, number>();
+  const accountLimit = (userId: string) => limits.get(userId) ?? 10;
+  const accountUsed = (userId: string) => profiles.reduce((sum, p) => sum + (p.userId === userId ? p.files.length : 0), 0);
+  const fileHistory = new Map<string, { owner: string; fileName: string; kind: string; completedAt: string }[]>();
   const sessions: Session[] = [];
   const grants = new Set(['pc-001:demo-khoa', 'pc-001:demo-an', 'pc-002:demo-khoa', 'pc-002:demo-an', 'pc-003:demo-an']);
   const assignments: Assignment[] = [{ id: uid(), assetId: 'pc-001', userId: 'demo-khoa', username: 'khoa', status: 'Active', assignedAt: now(), assignedBy: 'admin', notes: 'Cấp phát cho nhóm Sản phẩm', returnedAt: null, closedBy: null, closeNotes: null }];
@@ -56,11 +60,11 @@ export function createDemoFetch(): typeof fetch {
   const agents = assets.slice(0, 2).map((asset, index) => ({ id: `agent-${index}`, assetId: asset.id, assetCode: asset.assetCode, assetStatus: asset.status, instanceId: `DEMO-${index + 1}`, policy: 'active', mode: index === 0 ? 'real' : 'simulated', hostname: asset.assetCode, os: 'Windows 11 · dữ liệu demo', cpu: 'Intel Core i5', ramBytes: 16 * 1024 ** 3, agentVersion: 'Demo UI', revokedAt: null as string | null, revokedReason: null as string | null }));
   const replay = new Map<string, string>();
   function snapshot(session: Session, profile: Profile, contentBase64?: string): MachineProfile {
-    const used = profile.files.length;
+    const used = accountUsed(profile.userId), limit = accountLimit(profile.userId);
     return { sessionId: session.id, deviceId: session.deviceId, profileId: profile.id,
       domainId: `COMPANY\\${users.find(u => u.id === session.userId)!.username}`, deviceName: assets.find(a => a.id === session.deviceId)!.name,
       files: [...profile.files, ...profile.trash.map(file => ({ ...file, folder: 'RecycleBin' }))].map(({ content: _content, ...file }) => file),
-      quota: { maxFiles: profile.maxFiles, usedFiles: used, reservedFiles: 0, remainingFiles: Math.max(0, profile.maxFiles - used), overQuota: used > profile.maxFiles }, contentBase64 };
+      quota: { maxFiles: limit, usedFiles: used, reservedFiles: 0, remainingFiles: Math.max(0, limit - used), overQuota: used > limit }, contentBase64 };
   }
   function page<T extends object>(rows: T[], url: URL) {
     const search = (url.searchParams.get('search') ?? '').toLocaleLowerCase('vi');
@@ -90,7 +94,7 @@ export function createDemoFetch(): typeof fetch {
     if (path === '/auth/me') return response(actor);
     if (path === '/me/assets') return response(assignments.filter(a => a.userId === actor.id && a.status === 'Active').map(a => ({ ...a, assetName: assets.find(x => x.id === a.assetId)?.name, assetCode: assets.find(x => x.id === a.assetId)?.assetCode })));
 
-    const machineMatch = path.match(/^\/machines\/([^/]+)\/(sessions|profile|information|logout|files\/operations|software\/([^/]+)\/remove)$/);
+    const machineMatch = path.match(/^\/machines\/([^/]+)\/(sessions|profile|information|file-details|logout|files\/operations|software\/([^/]+)\/remove)$/);
     if (machineMatch) {
       const [, deviceId, action] = machineMatch;
       const device = assets.find(a => a.id === deviceId);
@@ -99,7 +103,7 @@ export function createDemoFetch(): typeof fetch {
       if (action === 'sessions') {
         const other = sessions.find(s => s.deviceId === deviceId && s.userId !== actor.id);
         if (other) return fail('Máy đang có phiên của người khác. Hãy đăng xuất phiên đó trước.', 409);
-        if (!profile) { profile = { id: uid(), userId: actor.id, deviceId, maxFiles: 10, files: [], trash: [] }; profiles.push(profile); }
+        if (!profile) { profile = { id: uid(), userId: actor.id, deviceId, files: [], trash: [] }; profiles.push(profile); }
         let session = sessions.find(s => s.deviceId === deviceId && s.userId === actor.id);
         if (!session) { session = { id: uid(), userId: actor.id, deviceId, profileId: profile.id }; sessions.push(session); }
         return response(snapshot(session, profile));
@@ -109,6 +113,19 @@ export function createDemoFetch(): typeof fetch {
       if (action === 'logout') { sessions.splice(sessions.indexOf(session), 1); return response(true); }
       if (action === 'profile') return response(snapshot(session, profile));
       if (action === 'information') return response(employeeInfo(device));
+      if (action === 'file-details') {
+        const files = profiles.filter(p => p.deviceId === deviceId).flatMap(p => {
+          const owner = users.find(u => u.id === p.userId)?.username ?? '';
+          return [...p.files, ...p.trash.map(f => ({ ...f, folder: 'RecycleBin' }))].map(
+            ({ name, folder, extension, sizeBytes }) => ({ name, folder, extension, sizeBytes, owner }));
+        }).sort((a, b) => a.name.localeCompare(b.name) || a.owner.localeCompare(b.owner));
+        const detailsPage = <T extends object>(rows: T[], key: string) => {
+          const params = new URL(url.origin);
+          params.searchParams.set('page', String(Math.min(Number(url.searchParams.get(key)) || 1, Math.ceil(rows.length / 10))));
+          return page(rows, params);
+        };
+        return response({ files: detailsPage(files, 'filesPage'), history: detailsPage(fileHistory.get(deviceId) ?? [], 'historyPage') });
+      }
       if (machineMatch[3]) {
         if (method !== 'POST') return fail('Thao tác không hợp lệ.', 405);
         const attempts = (approvalAttempts.get(actor.id) ?? []).filter(time => Date.now() - time < 60000);
@@ -140,7 +157,7 @@ export function createDemoFetch(): typeof fetch {
         try { if (atob(content).length > 8 * 1024 * 1024) return fail('Giới hạn kỹ thuật 8 MiB mỗi file.', 413); }
         catch { return fail('Nội dung file không hợp lệ.'); }
       }
-      if (['create', 'copy', 'restore'].includes(body.kind) && profile.files.length >= profile.maxFiles) return fail(`Đã đạt quota ${profile.maxFiles}/${profile.maxFiles} file.`, 409);
+      if (['create', 'copy', 'restore'].includes(body.kind) && accountUsed(actor.id) >= accountLimit(actor.id)) return fail('Đã đạt giới hạn file của tài khoản.', 409);
       if (['read', 'write', 'rename', 'move', 'copy', 'delete'].includes(body.kind) && !file) return fail('Không tìm thấy file trong profile của bạn.', 404);
       if (['create', 'rename', 'copy'].includes(body.kind) && (!validName(name) || duplicate(name, folder, body.kind === 'rename' ? file?.fileId : undefined))) return fail('Tên file không hợp lệ hoặc đã tồn tại.', 409);
       let readContent: string | undefined;
@@ -165,6 +182,12 @@ export function createDemoFetch(): typeof fetch {
           profile.trash.splice(profile.trash.indexOf(removed), 1); profile.files.push({ ...removed, folder }); break;
         }
         default: return fail('Thao tác chưa được hỗ trợ trong demo.', 400);
+      }
+      if (!['list', 'read', 'ensure'].includes(body.kind)) {
+        const fileName = body.kind === 'restore' ? profile.files.find(f => f.fileId === body.fileId)!.name : name;
+        const events = fileHistory.get(deviceId) ?? [];
+        events.unshift({ owner: actor.username, kind: body.kind, fileName, completedAt: now() });
+        fileHistory.set(deviceId, events);
       }
       if (body.requestId && !['list', 'read'].includes(body.kind)) replay.set(requestKey, JSON.stringify(body));
       return response(snapshot(session, profile, readContent));
@@ -348,12 +371,12 @@ export function createDemoFetch(): typeof fetch {
       if (action === 'revoke') { for (const key of grants) if (key.startsWith(`${id}:`)) grants.delete(key); for (let i = sessions.length - 1; i >= 0; i--) if (sessions[i].deviceId === id) sessions.splice(i, 1); }
       return response(assignment);
     }
-    if (path === '/profiles') return response(profiles.map(p => ({ profileId: p.id, userId: p.userId, username: users.find(u => u.id === p.userId)?.username, deviceId: p.deviceId, deviceName: assets.find(a => a.id === p.deviceId)?.name, maxFiles: p.maxFiles, usedFiles: p.files.length, storageBackend: 'Server' })));
+    if (path === '/profiles') return response(profiles.map(p => ({ profileId: p.id, userId: p.userId, username: users.find(u => u.id === p.userId)?.username, deviceId: p.deviceId, deviceName: assets.find(a => a.id === p.deviceId)?.name, maxFiles: accountLimit(p.userId), usedFiles: p.files.length, storageBackend: 'Server' })));
     if (/^\/profiles\/[^/]+\/quota$/.test(path) && method === 'PUT') {
       const profile = profiles.find(p => p.id === path.split('/')[2]);
       if (!profile) return fail('Không tìm thấy profile.', 404);
       if (!Number.isInteger(body.maxFiles) || body.maxFiles < 0 || body.maxFiles > 10000) return fail('Quota phải là số nguyên từ 0 đến 10000.');
-      profile.maxFiles = body.maxFiles; return response(true);
+      limits.set(profile.userId, body.maxFiles); return response(true);
     }
     if (path === '/agents') return response(agents);
     if (/^\/agents\/[^/]+\/disable$/.test(path)) { const agent = agents.find(a => a.id === path.split('/')[2]); if (agent) agent.policy = 'disabled'; return response(true); }

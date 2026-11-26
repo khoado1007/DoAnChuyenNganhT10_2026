@@ -1,4 +1,4 @@
-import { lazy, useEffect, useState } from 'react';
+import { lazy, useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Result, Spin } from 'antd';
 import { clearSession, deviceSessions, reportMachinePage, endMachineSession, getCurrentUser, getToken, sessionExpiredEvent } from './api/auth';
 import { ApiError } from './api/client';
@@ -25,11 +25,11 @@ export default function App() {
     return () => window.removeEventListener('itdesk:preview-user', changed);
   }, []);
   // Cập nhật URL và trạng thái React đồng thời; hỗ trợ cả điều hướng mới lẫn thay thế lịch sử.
-  function navigate(next: string, replace = false) {
+  const navigate = useCallback((next: string, replace = false) => {
     if (replace) window.history.replaceState(null, '', next);
     else window.history.pushState(null, '', next);
     setPath(next);
-  }
+  }, []);
 
   // Giữ đúng cổng đăng nhập theo URL hiện tại sau khi kết thúc phiên.
   async function logout() {

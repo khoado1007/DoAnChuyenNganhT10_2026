@@ -42,6 +42,74 @@ public sealed class ServerSimulationTests(ServerApiFactory factory) : IClassFixt
     private static Task<HttpResponseMessage> Op(HttpClient c, Guid asset, object op) => c.PostAsJsonAsync($"/api/machines/{asset}/files/operations", op);
 
     [Fact]
+    public async Task Account_quota_is_shared_across_machines_including_concurrent_last_slot()
+    {
+        var (admin, employee, first, _, _) = await Setup();
+        using var a = admin;
+        using var e = employee;
+        using var secondClient = factory.CreateClient();
+        secondClient.DefaultRequestHeaders.Authorization = e.DefaultRequestHeaders.Authorization;
+        var second = (await Data(await a.PostAsJsonAsync("/api/assets", new { assetCode = Guid.NewGuid().ToString("N"), name = "PC B" }))).GetProperty("id").GetGuid();
+        Task<HttpResponseMessage> Create(HttpClient client, Guid machine, string name) =>
+            Op(client, machine, new { kind = "create", folder = "Desktop", name, requestId = Guid.NewGuid() });
+        for (int i = 0; i < 7; i++) await Data(await Create(e, first, $"A{i}.txt"));
+        var secondSession = await Data(await secondClient.PostAsJsonAsync($"/api/machines/{second}/sessions", new { }));
+        secondClient.DefaultRequestHeaders.Add("X-Device-Session", secondSession.GetProperty("sessionId").GetString());
+        var snapshot = await Data(await secondClient.GetAsync($"/api/machines/{second}/profile"));
+        Assert.Empty(snapshot.GetProperty("files").EnumerateArray());
+        Assert.Equal(3, snapshot.GetProperty("quota").GetProperty("remainingFiles").GetInt32());
+        await Data(await Create(secondClient, second, "B1.txt"));
+        await Data(await Create(secondClient, second, "B2.txt"));
+        var race = await Task.WhenAll(Create(e, first, "last-A.txt"), Create(secondClient, second, "last-B.txt"));
+        Assert.Single(race, result => result.IsSuccessStatusCode);
+        Assert.Single(race, result => result.StatusCode == HttpStatusCode.Conflict);
+        var profile = secondSession.GetProperty("profileId").GetGuid();
+        await Data(await a.PutAsJsonAsync($"/api/profiles/{profile}/quota", new { maxFiles = 0 }));
+        snapshot = await Data(await e.GetAsync($"/api/machines/{first}/profile"));
+        var quota = snapshot.GetProperty("quota");
+        Assert.Equal(0, quota.GetProperty("maxFiles").GetInt32());
+        Assert.Equal(10, quota.GetProperty("usedFiles").GetInt32());
+        Assert.True(quota.GetProperty("overQuota").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Shared_machine_details_show_metadata_and_mutations_but_desktops_stay_private()
+    {
+        var (admin, employee, machine, _, _) = await Setup();
+        using var a = admin;
+        using var e = employee;
+        var route = $"/api/machines/{machine}";
+        var create = new { kind = "create", folder = "Desktop", name = "draft.txt", contentBase64 = "aGVsbG8=", requestId = Guid.NewGuid() };
+        var fileId = (await Data(await Op(e, machine, create))).GetProperty("files")[0].GetProperty("fileId").GetGuid();
+        await Data(await Op(e, machine, create)); // replay adds no history
+        await Data(await Op(e, machine, new { kind = "rename", fileId, newName = "final.txt", requestId = Guid.NewGuid() }));
+        await Data(await Op(e, machine, new { kind = "read", fileId, requestId = Guid.NewGuid() }));
+        await Data(await e.PostAsJsonAsync(route + "/logout", new { }));
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.GetAsync(route + "/file-details")).StatusCode);
+
+        var (_, other, otherMachine, _, _) = await Setup();
+        using var second = other;
+        await Data(await Op(second, otherMachine, new { kind = "create", folder = "Documents", name = "other-machine.txt", requestId = Guid.NewGuid() }));
+        Assert.Equal(HttpStatusCode.Forbidden, (await second.GetAsync(route + "/file-details")).StatusCode);
+        var session = await Data(await second.PostAsJsonAsync(route + "/sessions", new { }));
+        second.DefaultRequestHeaders.Remove("X-Device-Session");
+        second.DefaultRequestHeaders.Add("X-Device-Session", session.GetProperty("sessionId").GetString());
+        var desktop = await Data(await second.GetAsync(route + "/profile"));
+        Assert.Empty(desktop.GetProperty("files").EnumerateArray());
+        Assert.Equal(1, desktop.GetProperty("quota").GetProperty("usedFiles").GetInt32());
+        Assert.Equal(HttpStatusCode.NotFound, (await Op(second, machine, new { kind = "read", fileId, requestId = Guid.NewGuid() })).StatusCode);
+        var details = await Data(await second.GetAsync(route + "/file-details"));
+        var file = Assert.Single(details.GetProperty("files").GetProperty("items").EnumerateArray());
+        Assert.Equal("final.txt", file.GetProperty("name").GetString());
+        Assert.Equal(5, file.GetProperty("sizeBytes").GetInt64());
+        Assert.Equal(new[] { "extension", "folder", "name", "owner", "sizeBytes" }, file.EnumerateObject().Select(p => p.Name).Order().ToArray());
+        var history = details.GetProperty("history").GetProperty("items").EnumerateArray().ToArray();
+        Assert.Equal(2, history.Length);
+        Assert.Contains(history, ev => ev.GetProperty("kind").GetString() == "rename" && ev.GetProperty("fileName").GetString() == "final.txt");
+        Assert.Contains(history, ev => ev.GetProperty("kind").GetString() == "create" && ev.GetProperty("fileName").GetString() == "draft.txt");
+    }
+
+    [Fact]
     public async Task Tab_departure_reserves_machine_until_deadline_and_a_newer_resume_cancels_it()
     {
         var (admin, employee, asset, session, _) = await Setup();

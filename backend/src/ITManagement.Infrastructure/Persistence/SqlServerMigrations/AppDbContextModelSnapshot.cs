@@ -541,6 +541,10 @@ namespace ITManagement.Infrastructure.Persistence.SqlServerMigrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("FileName")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(24)
@@ -855,6 +859,11 @@ namespace ITManagement.Infrastructure.Persistence.SqlServerMigrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("FileCountLimit")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(10);
 
                     b.Property<string>("FullName")
                         .IsRequired()

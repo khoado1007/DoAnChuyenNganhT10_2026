@@ -11,6 +11,7 @@ namespace ITManagement.Domain.Entities.User;
 /// </summary>
 public partial class AppUser : BaseEntity
 {
+    public int FileCountLimit { get; set; } = 10;
     public int SecurityVersion { get; set; }
     public bool RequiresPasswordChange { get; set; }
     public DateTime? PasswordFirstLoginAt { get; set; }

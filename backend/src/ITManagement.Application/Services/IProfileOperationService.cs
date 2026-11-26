@@ -8,6 +8,7 @@ namespace ITManagement.Application.Services;
 public interface IProfileOperationService
 {
     Task<ProfileSnapshot> GetProfileSnapshotAsync(Guid assetId, Guid sessionId, CancellationToken ct);
+    Task<MachineFileDetails> GetMachineFileDetailsAsync(Guid assetId, Guid sessionId, int filesPage, int historyPage, CancellationToken ct);
     Task<ProfileSnapshot> ExecuteOperationAsync(Guid assetId, Guid sessionId, FileActionRequest request, CancellationToken ct);
     Task<IReadOnlyList<ProfileSummaryResponse>> ListProfilesAsync(CancellationToken ct);
     Task SetProfileQuotaAsync(Guid profileId, int maxFiles, CancellationToken ct);

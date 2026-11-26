@@ -12,6 +12,7 @@ public class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         builder.ToTable("app_users");
 
         builder.HasKey(u => u.Id);
+        builder.Property(u => u.FileCountLimit).HasDefaultValue(10).HasSentinel(-1);
         builder.Property(u => u.Username).IsRequired().HasMaxLength(100);
         builder.HasIndex(u => u.Username).IsUnique();
         builder.Property(u => u.Email).IsRequired().HasMaxLength(200);

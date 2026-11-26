@@ -10,6 +10,7 @@ const base = process.env.ITAM_UI_URL || 'http://127.0.0.1:5192';
   const user={id:'employee-a',username:'khoa',fullName:'Nhân viên thử nghiệm',email:'khoa@test.local',role:'Employee',status:'Active'};
   const profile={sessionId:'session-a',deviceId:'machine-a',profileId:'profile-a',domainId:'COMPANY\\khoa',deviceName:'PC-001',files:[{fileId:'file-a',name:'saved.txt',folder:'Desktop',sizeBytes:4,extension:'.txt'}],quota:{maxFiles:10,usedFiles:1,reservedFiles:0,remainingFiles:9,overQuota:false}};
   let profileStatus=200, ensureStatus=200, starts=0, reads=0, logout=0;
+  const writes=[];
   await page.route(url=>url.pathname.startsWith('/api/'),async route=>{
    const request=route.request(),path=new URL(request.url()).pathname;
    let data=null,status=200;
@@ -18,7 +19,16 @@ const base = process.env.ITAM_UI_URL || 'http://127.0.0.1:5192';
    else if(path==='/api/me/assets') data=[];
    else if(path==='/api/machines') data=[{id:'machine-a',name:'PC-001',assetCode:'PC-001',mode:'real'},{id:'machine-b',name:'PC-002',assetCode:'PC-002',mode:'simulated'}];
    else if(path==='/api/machines/machine-a/sessions'){ starts++; data=profile; }
-   else if(path==='/api/machines/machine-a/files/operations'){status=ensureStatus;data=profile;}
+   else if(path==='/api/machines/machine-a/files/operations'){
+    const op=request.postDataJSON();
+    data=profile;
+    if(op.kind==='ensure') status=ensureStatus;
+    if(op.kind==='read') data={...profile,contentBase64:''};
+    if(op.kind==='write'){
+     writes.push(op);
+     status=writes.length===1?503:200;
+    }
+   }
    else if(path==='/api/machines/machine-a/profile'){
     reads++; assert.equal(request.headers()['x-device-session'],'session-a');
     assert.equal(request.headers()['authorization'],'Bearer employee-token');
@@ -35,6 +45,18 @@ const base = process.env.ITAM_UI_URL || 'http://127.0.0.1:5192';
   await page.getByLabel('Mật khẩu',{exact:true}).fill('test-password');
   await page.getByRole('button',{name:'Đăng nhập máy',exact:true}).click();
   await page.getByText('saved.txt',{exact:true}).waitFor();
+  await page.getByRole('row').filter({hasText:'saved.txt'}).getByRole('radio').check();
+  await page.getByRole('button',{name:'Mở / tải xuống',exact:true}).click();
+  const editor=page.getByLabel('Nội dung TXT/CSV');
+  await editor.fill('Bản đang soạn');
+  await page.getByRole('button',{name:'Lưu nội dung',exact:true}).click();
+  await page.getByText('Phiên không khả dụng',{exact:true}).waitFor();
+  assert.equal(await editor.inputValue(),'Bản đang soạn');
+  await page.getByRole('button',{name:'Lưu nội dung',exact:true}).click();
+  await editor.waitFor({state:'detached'});
+  assert.equal(writes.length,2);
+  assert.ok(writes[0].requestId);
+  assert.deepEqual(writes[1],writes[0],'Retry must reuse the original operation ID and content');
   await page.reload();
   await page.getByText('saved.txt',{exact:true}).waitFor();
   assert.equal(starts,1,'F5 must reuse the existing device session');assert.ok(reads>0);

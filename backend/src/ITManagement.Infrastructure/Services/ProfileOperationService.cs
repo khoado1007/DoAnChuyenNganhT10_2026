@@ -85,17 +85,26 @@ public sealed partial class ProfileOperationService(
             .Select(f => new LocalFileDto(f.Id, f.Name, f.Folder, f.SizeBytes, f.Extension))
             .ToListAsync(ct);
 
-        var reservedCount = await db.ProfileOperations.AsNoTracking()
-            .Where(o => o.ProfileId == profile.Id && o.ReservedFiles > 0 && o.CompletedAt == null)
-            .SumAsync(o => o.ReservedFiles, ct);
-
-        var usedFiles = profile.UsedFiles;
-        var maxFiles = profile.MaxFiles;
-        var remainingFiles = Math.Max(0, maxFiles - usedFiles - reservedCount);
-        var overQuota = usedFiles > maxFiles;
-
-        var quota = new QuotaSnapshot(maxFiles, usedFiles, reservedCount, remainingFiles, overQuota);
+        var quota = await AccountQuotaAsync(user.Id, ct);
         return new ProfileSnapshot(session.Id, asset.Id, profile.Id, "COMPANY\\" + user.Username, asset.Name, files, quota, contentBase64);
+    }
+
+    private Task<AppUser> LockQuotaOwnerAsync(Guid userId, CancellationToken ct) =>
+        db.AppUsers.FromSqlInterpolated($"SELECT * FROM app_users WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {userId}").SingleAsync(ct);
+
+    private async Task<QuotaSnapshot> AccountQuotaAsync(Guid userId, CancellationToken ct)
+    {
+        var totals = await db.AppUsers.Where(u => u.Id == userId).Select(u => new
+        {
+            Limit = u.FileCountLimit,
+            Used = db.LocalProfiles.Where(p => p.UserId == u.Id).Sum(p => p.UsedFiles),
+            Reserved = (from op in db.ProfileOperations
+                        join p in db.LocalProfiles on op.ProfileId equals p.Id
+                        where p.UserId == u.Id && op.CompletedAt == null
+                        select op.ReservedFiles).Sum()
+        }).SingleAsync(ct);
+        return new(totals.Limit, totals.Used, totals.Reserved,
+            Math.Max(0, totals.Limit - totals.Used - totals.Reserved), totals.Used > totals.Limit);
     }
 
     public async Task<ProfileSnapshot> GetProfileSnapshotAsync(Guid assetId, Guid sessionId, CancellationToken ct)
@@ -120,7 +129,7 @@ public sealed partial class ProfileOperationService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // Lock profile row để bảo vệ Quota Reservation trước các request đồng thời.
+        await LockQuotaOwnerAsync(user.Id, ct);
         var lockedProfile = await db.LocalProfiles
             .FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {profile.Id}")
             .SingleAsync(ct);
@@ -149,11 +158,7 @@ public sealed partial class ProfileOperationService(
                 throw FileOperationError(existingOp.ErrorCode);
         }
 
-        var currentReserved = await db.ProfileOperations
-            .Where(o => o.ProfileId == profile.Id && o.ReservedFiles > 0 && o.CompletedAt == null)
-            .SumAsync(o => o.ReservedFiles, ct);
-
-        if (isAdding && (lockedProfile.UsedFiles + currentReserved >= lockedProfile.MaxFiles))
+        if (isAdding && (await AccountQuotaAsync(user.Id, ct)).RemainingFiles == 0)
         {
             throw new SimulationException(409, "FILE_COUNT_QUOTA_EXCEEDED", "Đã đạt giới hạn số lượng tệp (Quota).");
         }
@@ -168,6 +173,14 @@ public sealed partial class ProfileOperationService(
             .SingleOrDefaultAsync(a => a.AssetId == assetId && a.RevokedAt == null && a.DisabledAt == null, ct)
             ?? throw new SimulationException(503, "AGENT_UNAVAILABLE", "Agent trên thiết bị chưa sẵn sàng.");
 
+        string? historyName = null;
+        if (FileChanges.Contains(request.Kind))
+        {
+            var name = request.NewName ?? request.Name ??
+                await db.ProfileFiles.Where(f => f.ProfileId == profile.Id && f.Id == request.FileId)
+                    .Select(f => f.Name).FirstOrDefaultAsync(ct);
+            if (name is { Length: <= 512 }) historyName = Path.GetFileName(name);
+        }
         var op = new ProfileOperation
         {
             Id = Guid.NewGuid(),
@@ -176,6 +189,7 @@ public sealed partial class ProfileOperationService(
             SessionId = session.Id,
             AgentId = agent.Id,
             Kind = request.Kind,
+            FileName = historyName,
             State = "Pending",
             RequestHash = requestHash,
             ReservedFiles = delta,
@@ -238,7 +252,7 @@ public sealed partial class ProfileOperationService(
                       orderby p.CreatedAt descending
                       select new ProfileSummaryResponse(
                           p.Id, u.Id, u.Username, u.FullName, a.Id, a.Name, a.AssetCode,
-                          p.MaxFiles, p.UsedFiles, p.Ready, p.CreatedAt,
+                          u.FileCountLimit, p.UsedFiles, p.Ready, p.CreatedAt,
                           db.ProfileOperations.Where(o => o.ProfileId == p.Id && o.CompletedAt == null).Select(o => o.State).FirstOrDefault(),
                           db.ProfileOperations.Where(o => o.ProfileId == p.Id && o.CompletedAt == null).Sum(o => o.ReservedFiles), p.StorageBackend)).ToListAsync(ct);
     }
@@ -252,12 +266,12 @@ public sealed partial class ProfileOperationService(
             throw new SimulationException(400, "INVALID_QUOTA", "Hạn mức tệp không được âm.");
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var profile = await db.LocalProfiles
-            .FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {profileId}")
-            .SingleOrDefaultAsync(ct)
+        var profile = await db.LocalProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.Id == profileId, ct)
             ?? throw new NotFoundException("LocalProfile", profileId);
-
-        profile.MaxFiles = maxFiles;
+        var owner = await LockQuotaOwnerAsync(profile.UserId, ct);
+        owner.FileCountLimit = maxFiles;
+        await db.LocalProfiles.Where(p => p.UserId == owner.Id)
+            .ExecuteUpdateAsync(set => set.SetProperty(p => p.MaxFiles, maxFiles), ct);
         db.AppAuditEvents.Add(new AppAuditEvent
         {
             ActorId = current.UserId,
@@ -314,7 +328,8 @@ public sealed partial class ProfileOperationService(
         var known = await db.ProfileOperations.AsNoTracking().SingleOrDefaultAsync(o => o.Id == operationId, ct);
         if (known is null || known.AgentId != agent.Id) throw new NotFoundException("ProfileOperation", operationId);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        // Same lock order as enqueue/reconcile: profile before operation.
+        var ownerId = await db.LocalProfiles.Where(p => p.Id == known.ProfileId).Select(p => p.UserId).SingleAsync(ct);
+        await LockQuotaOwnerAsync(ownerId, ct);
         var profile = await db.LocalProfiles
             .FromSqlInterpolated($"SELECT * FROM local_profiles WITH (UPDLOCK, ROWLOCK) WHERE \"Id\" = {known.ProfileId}")
             .SingleAsync(ct);

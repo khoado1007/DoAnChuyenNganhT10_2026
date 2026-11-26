@@ -43,6 +43,10 @@ const { ITAM_UI_URL: base, ITAM_DEVICE: device, ITAM_OTHER_DEVICE: otherDevice, 
     await page.getByRole('button', { name: 'Lưu nội dung', exact: true }).click();
     await page.getByLabel('Nội dung TXT/CSV').waitFor({ state: 'detached' });
     console.log('PASS create edit save TXT through real HTTP/SQL');
+    await page.getByRole('tab', { name: 'Chi tiết', exact: true }).click();
+    await row('server-note.txt').filter({ hasText: 'Cập nhật' }).waitFor();
+    await row('server-note.txt').filter({ hasText: 'Tạo file' }).waitFor();
+    await page.getByRole('tab', { name: 'Desktop / Documents', exact: true }).click();
     for (const name of ['sample.pdf', 'sample.docx']) {
       await page.getByLabel('Nhập tài liệu', { exact: true }).setInputFiles(path.join(artifact, name));
       await row(name).waitFor();
@@ -88,6 +92,7 @@ const { ITAM_UI_URL: base, ITAM_DEVICE: device, ITAM_OTHER_DEVICE: otherDevice, 
     await page.getByRole('button', { name: 'Đăng nhập máy', exact: true }).click();
     await page.getByRole('tab', { name: 'Desktop / Documents', exact: true }).click();
     assert.equal(await row('server-note.txt').count(), 0);
+    await page.getByText(/Quota: 3 \/ 10 file/).waitFor();
     assert.equal(new URL(page.url()).pathname, `/machines/${otherDevice}/desktop`);
     console.log('PASS other active machine available with isolated files and mobile layout');
     await page.getByRole('button', { name: 'Đăng xuất / Đổi máy', exact: true }).click();

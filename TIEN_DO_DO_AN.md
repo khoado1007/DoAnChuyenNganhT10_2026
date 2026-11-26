@@ -1,12 +1,50 @@
 # Tiến độ và bàn giao đồ án IT Management
 
+**Trạng thái dự án · Hoàn thành phạm vi chức năng đã chốt ngày 26/11/2026.**
+
+## 26/11/2026 — Yêu cầu dọn bản bàn giao
+
+- Đã đánh dấu dự án hoàn thành trong README và file tiến độ.
+- Chủ đồ án yêu cầu xóa cả mã kiểm thử, kết quả chạy thử và cache. Đã thống kê khoảng 2 GB kết quả thử và build cũ, cùng các thư mục kiểm thử và môi trường Python.
+- Việc xóa chưa được thực hiện. Bộ kiểm soát tự động từ chối lệnh dọn hàng loạt, sau đó tiếp tục từ chối lệnh xóa riêng `backend/tests`. Cả hai chỉ trả về `blocked by policy`, không có lý do chi tiết hơn.
+- Cấu hình solution, npm và tài liệu đã được khôi phục phù hợp với các file kiểm thử đang có. Các kết quả nghiệm thu ghi phía dưới là kết quả trước mốc dọn này.
+
+## Phạm vi đã chốt cho toàn bộ đồ án
+
+Hỗ trợ từ xa của Technician, bao gồm xem màn hình hoặc điều khiển máy nhân viên, nằm ngoài phạm vi đồ án. Các mục lịch sử đề cập Technician hoặc ticket nâng cao không phải kế hoạch bổ sung điều khiển từ xa.
+
+## 26/11/2026 — Khép lại file Agent cũ và hoàn thiện README
+
+- [x] Hạng mục chuyển file Agent cũ đã được khép lại theo quyết định bỏ qua của chủ đồ án ngày 26/11/2026. Trạng thái này thay thế những ghi chú chờ nguồn ở các mốc lịch sử phía dưới.
+- Đã kiểm tra bản ghi cũ là `DEMO-metadata-only.txt`, dung lượng 0 byte, thuộc `khoa.demo`. Việc chuyển nội dung và tạo file thay thế đã được bỏ qua theo quyết định trên. Database và kho file không có thay đổi trong mốc cập nhật tài liệu này.
+- [x] Viết lại README đầy đủ theo nghiệp vụ hiện tại, gồm phân quyền Admin/Employee, quota tài khoản trên mọi máy, lịch sử file theo máy, chu kỳ mật khẩu, App/Service, ticket, kiến trúc, hướng dẫn Git Bash, khởi tạo database, cấu hình, kiểm thử, xử lý lỗi và sao lưu.
+- Đã xác minh 19 liên kết/điểm neo, tài nguyên logo, cấu trúc Markdown và cú pháp bảy khối lệnh Git Bash trong README. RUNNING.md đã đồng bộ trạng thái khép lại file cũ.
+- Phạm vi chức năng đã chốt được xem là hoàn thành tại mốc nghiệm thu 128/128 backend, 40/40 frontend và 10/10 kiểm tra Edge với SQL Server. Kết quả này được giữ từ lần nghiệm thu ngày 26/11; mốc tài liệu chỉ kiểm tra nội dung, đường dẫn và lệnh tham chiếu.
+
+## 26/11/2026 — Quota tài khoản và lịch sử file theo máy
+
+- Mỗi tài khoản Employee có một hạn mức trên tất cả máy, mặc định 10 file. Dùng 7 file trên máy A thì còn 3 trên máy B. Tạo, sao chép và khôi phục đều cần một suất trống. Chuyển vào thùng rác trả lại một suất. Admin xem tổng đã dùng, số file trên từng máy và chỉnh một hạn mức cho tài khoản.
+- Desktop/Documents và thùng rác chỉ liệt kê file của người đăng nhập trên máy hiện tại. Tab **Chi tiết** có hai bảng chỉ đọc cho máy đang dùng, gồm thông tin file của các chủ sở hữu và lịch sử thay đổi. Muốn mở hoặc sửa nội dung phải đăng nhập đúng chủ sở hữu trên đúng máy.
+- Nhật ký ghi tên file, thao tác, người thực hiện và thời điểm thành công. Sự kiện cũ thiếu tên hiển thị **Chưa ghi tên**. Ứng dụng và dịch vụ do Admin thêm vẫn nằm trong tab **Phần mềm**, được miễn quota và không phát sinh sự kiện file.
+- Migration `AccountFileQuota` đã áp dụng cho LocalDB `ITManagement` sau khi sao lưu và xác minh bản sao. Database hiện tại không có tài khoản nào có hạn mức cũ khác nhau giữa các máy. File Agent cũ vẫn chờ thư mục nguồn theo quyết định trước đó.
+- Đã đạt 128/128 kiểm thử backend, 40/40 kiểm thử frontend và build frontend. Đã kiểm tra hai máy cùng tranh suất cuối, quota bằng 0, từ chối mở file người khác, lịch sử sau đổi tên và trường hợp dùng phiên của máy khác. Trên Edge, trang Quota hiển thị một ô chỉnh cho tài khoản có hai máy.
+- Edge với API thật và SQL Server đạt 10/10 kiểm tra trên database riêng. Sau khi chuyển máy, Desktop trống và quota vẫn tính cả 3 file ở máy trước. Lịch sử file hiển thị thao tác tạo và cập nhật TXT. Ứng dụng đã chạy lại tại `http://127.0.0.1:5173`.
+
+## 25/11/2026 — Clean Architecture, Desktop Employee
+
+- Bàn giao: README đã đồng bộ mốc 126/126 kiểm thử backend. Theo quyết định của chủ đồ án, bỏ hai việc chốt lại báo cáo Word và tạo commit bàn giao. Việc còn mở là chuyển một file Agent cũ khi có thư mục nguồn.
+
+- Đã tách quản lý đăng nhập, khôi phục và kết thúc phiên vào `useMachineSession.ts`. `useDesktopFiles.ts` quản lý thao tác file và bản đang soạn theo phiên; `DesktopFiles.tsx` hiển thị thư mục, quota, bảng file và trình soạn thảo. `MachinesPage.tsx` điều phối màn hình chọn máy, đăng nhập và Desktop.
+- Kiểm thử Edge với API giả lập xác nhận lưu lại sau lỗi 503 giữ nguyên nội dung và mã yêu cầu, cập nhật đúng giao diện sau khi thành công. Đã kiểm tra F5, đổi máy, quyền bị thu hồi và đăng xuất. Build frontend thành công và 40/40 kiểm thử frontend đạt.
+- Edge + API + SQL Server đạt 10/10 kiểm tra trên database riêng, gồm lưu và đọc lại TXT, PDF/DOCX, F5, khởi động lại API và giải phóng máy sau khi đóng tab. Một lượt chạy nhiều trình duyệt đồng thời bị timeout; khi chạy lại, các kịch bản đều đạt. File Agent cũ vẫn chờ thư mục nguồn.
+
 ## 25/11/2026 — Clean Architecture, vòng đời mật khẩu Employee
 
 - `Domain/Entities/User/AppUser.PasswordCycle.cs` là nơi quy định khi nào bắt đầu chu kỳ, lúc nào nhắc, điều kiện khóa và cách bắt đầu lại sau khi Admin mở khóa. Đăng nhập lần đầu bắt đầu tính giờ. Hệ thống nhắc ở lần đầu và sau 4, 5, 6 ngày, khóa khi đủ 7 ngày. Reset mật khẩu cho tài khoản đang khóa vẫn cần Admin mở khóa.
 - `AuthService`, `UserService` và `PasswordPolicyService` dùng chung các quy tắc này. Infrastructure vẫn chịu trách nhiệm cho Identity, giao dịch và cập nhật khóa tài khoản trong một câu SQL. Thay đổi không yêu cầu migration.
 - 7/7 ca kiểm thử quy tắc Domain chạy độc lập với SQL Server, gồm các thời điểm sát ranh giới và đúng hạn, xác nhận nhắc nhiều lần, reset khi đang khóa và vai trò được miễn.
 - Toàn bộ backend đạt 126/126 kiểm thử, gồm chu kỳ cấp/reset → đăng nhập → nhắc → khóa → mở lại → đổi mật khẩu qua API trên LocalDB kiểm thử riêng.
-- **Phiên sau — phần 2:** đọc `frontend/admin/src/pages/MachinesPage.tsx`, tách quản lý phiên máy và thao tác file khỏi phần hiển thị Desktop. Nghiệm thu lại chọn máy → đăng nhập một lần → tạo/sửa/lưu file → F5 → đăng xuất, cùng trường hợp đóng tab đã thống nhất.
+- **Phần 2** đã thực hiện tại mục Desktop Employee phía trên.
 
 ## 25/11/2026 — tải danh sách máy Employee
 
@@ -124,8 +162,9 @@ Chỉ tiếp tục phát triển các chức năng mới sau khi toàn bộ nhi�
 
 Trong giai đoạn này, ưu tiên hoàn thiện kiến trúc, đơn giản hóa Workflow và nâng cao chất lượng mã nguồn thay vì mở rộng thêm chức năng.
 
-**Cập nhật gần nhất:** 25/11/2026 — giờ Việt Nam.
-**Mốc hiện tại — danh mục App/Service:** Đã nối thêm hàng loạt cho một hoặc nhiều máy và xác nhận xóa ngay trên máy nhân viên. Mục trùng tên và phân loại trên cùng máy được bỏ qua, giữ nguyên thông tin cũ. Đã nghiệm thu 118/118 backend, 40/40 frontend, build frontend và 3 kịch bản Edge. Bước tiếp theo là chuyển file Agent cũ khi có thư mục nguồn.
+**Cập nhật gần nhất:** 26/11/2026 — giờ Việt Nam.
+**Trạng thái hiện tại:** Phạm vi chức năng đã chốt hoàn thành, README đã viết lại. Yêu cầu chuyển file Agent cũ đã khép lại theo quyết định bỏ qua của chủ đồ án. Đọc các mốc ngày 26/11 ở đầu file khi tiếp tục phiên sau.
+**Mốc 24/11 — danh mục App/Service:** Đã nối thêm hàng loạt cho một hoặc nhiều máy và xác nhận xóa ngay trên máy nhân viên. Mục trùng tên và phân loại trên cùng máy được bỏ qua, giữ nguyên thông tin cũ. Đã nghiệm thu 118/118 backend, 40/40 frontend, build frontend và 3 kịch bản Edge.
 **Mốc 23/11 (đêm) — Bảo mật đường dẫn App/Service:** Employee xem danh sách phần mềm (Tên, Phiên bản, Phân loại, Lỗ hổng, Lần dùng gần nhất) nhưng `FilePath` bị loại bỏ (null) ở tầng API `GET /api/machines/{id}/information` và ẩn hoàn toàn cột đường dẫn trên giao diện `MachineWorkspace.tsx`. Admin vẫn giữ đầy đủ `FilePath` qua `GET /api/assets/{id}/specification` và modal Cấu hình mô phỏng. Backend **108/108 PASS**, frontend **38/38 PASS**, frontend build PASS, browser smoke `machine-workspace.cjs` PASS (xác minh không còn cột `Đường dẫn (chỉ hiển thị)`).
 **Mốc 23/11 (tối) — Ticket cơ bản:** Employee gửi và theo dõi yêu cầu tại `/employee/tickets`; Admin xử lý tại `/admin/tickets`. Luồng `Open → InProgress → Resolved → Closed`, comment công khai/ghi chú nội bộ; Employee chỉ thấy ticket của mình, Admin thấy tất cả, Technician (chưa có UI theo quyết định user) chỉ thấy ticket được giao ở tầng API. Backend **108/108 PASS**, frontend **38/38 PASS**, build PASS, browser smoke PASS và E2E thật PASS trên database GUID riêng (đã xóa sau kiểm thử).
 **Mốc 23/11 (chiều) — nghiệm thu 2 trang Admin + thu hẹp phạm vi nhật ký:** đã kiểm tra 2 trang `/admin/audit-log` và `/admin/files-admin` bằng trình duyệt (Edge/Playwright) đạt; thu hẹp API nhật ký về đúng 7 thao tác file, chuẩn hóa dữ liệu cũ, giữ nguyên toàn bộ sự kiện lịch sử trong DB. Backend **103/103 PASS**, frontend **33/33 PASS**, build PASS.
@@ -229,7 +268,7 @@ Database test dùng tiền tố `itmanagement_test_` hoặc `itam_dashboard_test
 | Đã nghiệm thu | Bảo mật đường dẫn App/Service | **23/11 đêm**: Employee không nhận `FilePath` qua API/UI; Admin xem/sửa đầy đủ. 108 backend test PASS, browser smoke PASS |
 | Đã nghiệm thu | Nhật ký tổng hợp và metadata file cho Admin | **23/11**: API + 2 trang Admin + browser smoke PASS; nhật ký chỉ 7 thao tác file, dữ liệu cũ giữ nguyên |
 | Đã nghiệm thu | Ticket cơ bản | **23/11 tối**: Employee gửi/theo dõi, Admin xử lý, comment nội bộ; 108 backend test, E2E thật PASS. Technician UI/phân công tạm hoãn |
-| Tiếp theo | Chuyển file Agent cũ | Chờ user cung cấp nguồn; không tự dò/copy/xóa dữ liệu |
+| Đã khép lại | Chuyển file Agent cũ | Chủ đồ án quyết định bỏ qua ngày 26/11/2026 |
 | Tạm hoãn | Ticket nâng cao (Technician, phân công, SLA, đính kèm) | Chỉ mở khi user yêu cầu; data model đã có `AssignedToUserId` nhưng chưa có UI |
 | Đã dọn tài liệu | Storage/Agent legacy | Hướng dẫn cũ ở legacy/README.md; API và dữ liệu giữ nguyên, chưa gộp hoặc loại bỏ |
 | Ngoài phạm vi hiện tại | Inventory thật / nhiều máy vật lý | Mô phỏng web không cần phần này; chỉ mở lại khi user yêu cầu |
@@ -242,7 +281,7 @@ Luồng mô phỏng server đã đạt: backend96/96, frontend32/32, E2E không 
 2. **Metadata file sau:** bảng tên file, thư mục, dung lượng, tài khoản, máy và loại kho Server/Agent. Tách rõ dữ liệu cũ/mới, không có nút mở/tải file cá nhân cho Admin. Test ranh giới quyền và dữ liệu trống. → **Đã nghiệm thu 23/11** cùng mốc trên.
 3. **Nghiệm thu mỗi mốc:** test phần liên quan + build + kiểm tra browser, cập nhật file tiến độ rồi mới mở bước kế tiếp. Không làm cả Ticket khi gần hết giới hạn.
 4. **Ticket cơ bản:** đã làm 23/11 tối theo lựa chọn user: Employee tạo, Admin xử lý, trạng thái rút gọn `Open → InProgress → Resolved → Closed`, có comment; Technician UI tạm hoãn. Không mở phân công/SLA/đính kèm khi chưa chốt.
-5. **File cũ:** chỉ chuyển khi người dùng cung cấp nguồn và yêu cầu; giữ nguyên bản gốc và backup.
+5. **File cũ:** đã khép lại theo quyết định bỏ qua ngày 26/11/2026.
 
 Dọn cache17/11 chưa thực hiện: lệnh xóa17 file cache (~179KiB) bị bộ kiểm soát tự động chặn theo chính sách. Không thử cách khác để vượt chặn. Không ảnh hưởng ứng dụng.
 

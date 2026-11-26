@@ -4,6 +4,7 @@ import { api } from '../api/auth';
 import type { DeviceSession } from '../api/machines';
 import { displayDate, displayValue, specificationLabels, softwareKindLabel, type MachineInformation, type Software } from '../types/machine-information';
 import RemoveSoftwareModal from './RemoveSoftwareModal';
+import MachineFileDetails from './MachineFileDetails';
 
 /** Employee xem cấu hình; mọi yêu cầu xóa phần mềm cần Admin xác nhận ở API. */
 export default function MachineWorkspace({ session, children }: { session: DeviceSession; children: ReactNode }) {
@@ -43,10 +44,10 @@ export default function MachineWorkspace({ session, children }: { session: Devic
     {error && <Alert type="error" showIcon message={error} action={<Button onClick={() => setAttempt(value => value + 1)}>Thử lại</Button>} />}
     <Tabs defaultActiveKey="files" items={[
       { key: 'files', label: 'Desktop / Documents', children },
-      { key: 'details', label: 'Chi tiết', children: <Card loading={loading}><Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }} items={Object.entries({ ...assetLabels, ...specificationLabels }).map(([key, label]) => {
+      { key: 'details', label: 'Chi tiết', destroyOnHidden: true, children: <><Card loading={loading}><Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }} items={Object.entries({ ...assetLabels, ...specificationLabels }).map(([key, label]) => {
         const value = information?.[key as keyof MachineInformation];
         return { key, label, children: key.endsWith('At') ? displayDate(value) : key === 'status' ? statusLabels[String(value)] ?? displayValue(value) : displayValue(value) };
-      })} /></Card> },
+      })} /></Card><MachineFileDetails key={session.sessionId} session={session} revision={attempt} /></> },
       { key: 'software', label: 'Phần mềm', children: <Card>
         <p>Danh sách do Admin quản lý · Không tính quota tài liệu. Muốn xóa, cần Admin xác nhận trên máy này.</p>
         <Input.Search aria-label="Tìm phần mềm" placeholder="Tên, phiên bản hoặc loại phần mềm" allowClear value={search} onChange={event => setSearch(event.target.value)} style={{ maxWidth: 420, marginBottom: 16 }} />

@@ -57,6 +57,7 @@ public sealed class ProfileOperation
     public string Kind { get; set; } = "";
     public string State { get; set; } = "Pending";
     public string CommandJson { get; set; } = "";
+    public string? FileName { get; set; }
     public string RequestHash { get; set; } = "";
     public string? ErrorCode { get; set; }
     public int ReservedFiles { get; set; }

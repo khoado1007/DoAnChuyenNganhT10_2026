@@ -21,7 +21,12 @@ const base = process.env.UI_BASE_URL || 'http://127.0.0.1:5173';
       if (path.endsWith('/information')) { informationCalls++; assert.equal(route.request().headers()['x-device-session'], session.sessionId); }
       const data = path.endsWith('/auth/login') ? { accessToken: 'fixture-token', user } : path.endsWith('/auth/me') ? user
         : path === '/api/me/assets' ? [] : path.startsWith('/api/tickets') ? {items:[],totalCount:0} : path === '/api/machines' ? [{ id: 'pc-1', assetCode: 'PC-001', name: session.deviceName, mode: 'simulated' }]
-        : path.endsWith('/profiles') ? [{ profileId: 'server-profile', username: 'server-user', deviceName: 'Máy server', storageBackend: 'Server', maxFiles: 10, usedFiles: 1 }, { profileId: 'agent-profile', username: 'agent-user', deviceName: 'Máy cũ', storageBackend: 'Agent', maxFiles: 10, usedFiles: 1, pendingState: 'Unknown' }]
+        : path.endsWith('/file-details') ? {files:{items:[{name:'colleague.txt',folder:'Documents',extension:'.txt',sizeBytes:10,owner:'binh'}],totalCount:1,page:1},history:{items:[],totalCount:0,page:1}}
+        : path.endsWith('/profiles') ? [
+          { profileId: 'server-profile', username: 'server-user', deviceName: 'Máy A', storageBackend: 'Server', maxFiles: 10, usedFiles: 7 },
+          { profileId: 'second-profile', username: 'server-user', deviceName: 'Máy B', storageBackend: 'Server', maxFiles: 10, usedFiles: 2 },
+          { profileId: 'agent-profile', username: 'agent-user', deviceName: 'Máy cũ', storageBackend: 'Agent', maxFiles: 10, usedFiles: 1, pendingState: 'Unknown' },
+        ]
         : path.endsWith('/assets/search') ? { items: [{ id: 'pc-1', assetCode: 'PC-001', name: session.deviceName, type: 'Desktop', status: 'Available' }], totalCount: 1 }
         : path.endsWith('/specification') || path.endsWith('/information') ? info : path.endsWith('/sessions') ? session : path.endsWith('/profile') || path.endsWith('/operations') ? profile : {};
       return route.fulfill({ json: { success: true, data } });
@@ -43,6 +48,7 @@ const base = process.env.UI_BASE_URL || 'http://127.0.0.1:5173';
     await page.screenshot({ path: 'artifacts/machine-workspace/overview-desktop.png', fullPage: true, animations: 'disabled' });
     await page.getByRole('button', {name: 'Tạo TXT/CSV'}).waitFor();
     await page.getByRole('tab', { name: 'Chi tiết', exact: true }).click();
+    await page.getByRole('row').filter({ hasText: 'colleague.txt' }).filter({ hasText: 'binh' }).waitFor();
     denyInformation = true;
     await page.getByRole('button', { name: 'Làm mới thông tin', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'Phiên không còn quyền' }).waitFor();
@@ -107,7 +113,9 @@ const base = process.env.UI_BASE_URL || 'http://127.0.0.1:5173';
     await page.goto(base + '/admin/quotas');
     const serverRow = page.getByRole('row').filter({ hasText: 'server-user' });
     const agentRow = page.getByRole('row').filter({ hasText: 'agent-user' });
-    await serverRow.getByText('Server mô phỏng', { exact: true }).waitFor();
+    await serverRow.getByText('Server mô phỏng', { exact: true }).first().waitFor();
+    await serverRow.getByRole('cell', { name: '9', exact: true }).waitFor();
+    assert.equal(await serverRow.getByRole('spinbutton').count(), 1);
     assert.equal(await serverRow.getByRole('button', { name: 'Đối soát', exact: true }).count(), 0);
     await agentRow.getByRole('button', { name: 'Đối soát', exact: true }).waitFor();
     assert.deepEqual(errors, []);

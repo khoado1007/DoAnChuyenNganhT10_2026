@@ -10,7 +10,7 @@ const navItems: { key: Section; label: string; icon: ReactNode; group: string }[
   { key: 'overview', label: 'Tổng quan', icon: <AppstoreOutlined />, group: 'KHÔNG GIAN LÀM VIỆC' },
   { key: 'tickets', label: 'Yêu cầu hỗ trợ', icon: <FileSearchOutlined />, group: 'DỊCH VỤ CNTT' },
   { key: 'assets', label: 'Tài sản', icon: <LaptopOutlined />, group: 'QUẢN LÝ TÀI SẢN' },
-  { key: 'quotas', label: 'Quota profile', icon: <LaptopOutlined />, group: 'QUẢN TRỊ' },
+  { key: 'quotas', label: 'Quota tài khoản', icon: <LaptopOutlined />, group: 'QUẢN TRỊ' },
   { key: 'users', label: 'Tài khoản', icon: <TeamOutlined />, group: 'QUẢN TRỊ' },
   { key: 'audit-log', label: 'Nhật ký thao tác', icon: <FileSearchOutlined />, group: 'QUẢN TRỊ' },
   { key: 'files-admin', label: 'Metadata file', icon: <FileSearchOutlined />, group: 'QUẢN TRỊ' },
